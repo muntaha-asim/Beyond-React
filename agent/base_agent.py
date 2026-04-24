@@ -66,9 +66,9 @@ def run_single_attempt(
         resume_step=0,
         agent_type="ResearchAgent",
         llm_name=model,
-        fast_llm_name=model,
+        fast_llm_name=model,   # patched to cheap model in llm.py patch_mlagentbench
         edit_script_llm_name=model,
-        edit_script_llm_max_tokens=4000,
+        edit_script_llm_max_tokens=2000,
         agent_max_steps=agent_max_steps,
         # Keep retrieval-related actions out of prompt (we don't use retrieval)
         actions_remove_from_prompt=[
@@ -79,9 +79,9 @@ def run_single_attempt(
         actions_add_to_prompt=[],
         retrieval=False,
         valid_format_entires=None,
-        max_steps_in_context=3,
-        max_observation_steps_in_context=3,
-        max_retries=5,
+        max_steps_in_context=1,
+        max_observation_steps_in_context=1,
+        max_retries=3,
         langchain_agent="zero-shot-react-description",
     )
 
@@ -98,9 +98,12 @@ def run_single_attempt(
     with Environment(args) as env:
         agent = ResearchAgent(args, env)
 
-        # Inject reflection context (or any prefix) into the initial prompt
+        # ML knowledge always goes first, then reflection context (if any), then task prompt
+        from agent.ml_knowledge import ML_KNOWLEDGE_PROMPT
+        prefix = ML_KNOWLEDGE_PROMPT
         if system_prompt_prefix:
-            agent.initial_prompt = system_prompt_prefix + "\n\n" + agent.initial_prompt
+            prefix = prefix + "\n\n" + system_prompt_prefix
+        agent.initial_prompt = prefix + "\n\n" + agent.initial_prompt
 
         result["final_message"] = agent.run(env)
         result["history_steps"] = _serialize_history(agent.history_steps)

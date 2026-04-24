@@ -35,7 +35,19 @@ def _model_slug(model: str) -> str:
     return (model
             .replace("claude-3-5-sonnet-20241022", "sonnet35")
             .replace("claude-3-5-sonnet-", "sonnet35-")
-            .replace("gpt-4o", "gpt4o"))
+            .replace("gpt-4o", "gpt4o")
+            .replace("gemini-2.5-flash-lite", "gemini25flashlite")
+            .replace("gemini-2.5-flash", "gemini25flash")
+            .replace("gemini-2.5-pro", "gemini25pro")
+            .replace("gemini-2.0-flash-lite-001", "gemini20flashlite")
+            .replace("gemini-2.0-flash-lite", "gemini20flashlite")
+            .replace("gemini-2.0-flash-001", "gemini20flash001")
+            .replace("gemini-2.0-flash", "gemini20flash")
+            .replace("gemini-1.5-pro", "gemini15pro")
+            .replace("gemini-1.5-flash", "gemini15flash")
+            .replace("claude-sonnet-4-6", "sonnet46")
+            .replace("claude-haiku-4-5-20251001", "haiku45")
+            .replace("claude-opus-4-7", "opus47"))
 
 
 def run_experiment(

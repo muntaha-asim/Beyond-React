@@ -1,22 +1,27 @@
 """
-Modern LLM wrapper supporting Claude 3.5 Sonnet and GPT-4o.
+Modern LLM wrapper supporting Claude 3.5 Sonnet, GPT-4o, and Gemini.
 Reads API keys from .env and patches MLAgentBench.LLM so the
 existing ResearchAgent code works without modification.
 """
 import os
 import sys
+import time
+import types
 
 from dotenv import load_dotenv
 load_dotenv()
 
 import anthropic as _anthropic_sdk
 import openai as _openai_sdk
+from google import genai as _gemini_sdk
+from google.genai import types as _gemini_types
 
 _anthropic_client = _anthropic_sdk.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 _openai_client = _openai_sdk.OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+_gemini_client = _gemini_sdk.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
 # Fast/cheap model used for summarization within the agent loop
-FAST_MODEL = "claude-3-5-haiku-20241022"
+FAST_MODEL = "claude-haiku-4-5-20251001"
 
 
 def complete(
@@ -27,7 +32,7 @@ def complete(
     temperature: float = 0.5,
     log_file: str = None,
 ) -> str:
-    """Call Claude or GPT-4o and return the completion string."""
+    """Call Claude, Gemini, or GPT-4o and return the completion string."""
     stop_sequences = stop_sequences or []
 
     if model.startswith("claude"):
@@ -42,6 +47,30 @@ def complete(
             **kwargs,
         )
         completion = response.content[0].text
+    elif model.startswith("gemini"):
+        # Retry up to 10 times on 503 (server overload) with exponential backoff
+        for attempt in range(10):
+            try:
+                response = _gemini_client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=_gemini_types.GenerateContentConfig(
+                        max_output_tokens=max_tokens,
+                        temperature=temperature,
+                        stop_sequences=stop_sequences if stop_sequences else None,
+                    ),
+                )
+                completion = response.text or ""
+                break
+            except Exception as e:
+                if "503" in str(e) or "UNAVAILABLE" in str(e) or "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    wait = min(300, 30 * (attempt + 1))
+                    print(f"[llm] Gemini overload — retrying in {wait}s (attempt {attempt+1}/10)")
+                    time.sleep(wait)
+                    if attempt == 9:
+                        raise
+                else:
+                    raise
     else:
         response = _openai_client.chat.completions.create(
             model=model,
@@ -72,6 +101,60 @@ def _write_log(log_file: str, prompt: str, completion: str, model: str):
         pass
 
 
+class _StubClass:
+    """Generic stub base class — satisfies isinstance checks and subclassing."""
+    def __init__(self, *a, **kw): pass
+    def __call__(self, *a, **kw): return None
+
+
+def _stub_missing_modules():
+    """
+    MLAgentBench's LLM.py imports transformers, torch, helm, and vertexai at
+    the top level even when they are not used. Stub them so the import does not
+    crash. We replace complete_text immediately after, so these stubs are never
+    actually invoked.
+    """
+    # torch stub — needs a real 'no_grad' context manager
+    if "torch" not in sys.modules:
+        import contextlib
+        torch_stub = types.ModuleType("torch")
+        torch_stub.Tensor = _StubClass
+        torch_stub.tensor = lambda *a, **kw: None
+        torch_stub.no_grad = contextlib.nullcontext
+        torch_stub.cuda = types.ModuleType("torch.cuda")
+        torch_stub.device = _StubClass
+        sys.modules["torch"] = torch_stub
+
+    # transformers stub — StoppingCriteria must be a real base class
+    if "transformers" not in sys.modules:
+        tf_stub = types.ModuleType("transformers")
+        tf_stub.AutoModelForCausalLM = _StubClass
+        tf_stub.AutoTokenizer = _StubClass
+        tf_stub.StoppingCriteria = _StubClass
+        tf_stub.StoppingCriteriaList = _StubClass
+        sys.modules["transformers"] = tf_stub
+
+    # helm + vertexai — plain stubs, never subclassed
+    for name, attrs in [
+        ("helm", []),
+        ("helm.common", []),
+        ("helm.common.authentication", ["Authentication"]),
+        ("helm.common.request", ["Request", "RequestResult"]),
+        ("helm.proxy", []),
+        ("helm.proxy.accounts", ["Account"]),
+        ("helm.proxy.services", []),
+        ("helm.proxy.services.remote_service", ["RemoteService"]),
+        ("vertexai", []),
+        ("vertexai.preview", []),
+        ("vertexai.preview.generative_models", ["GenerativeModel", "Part"]),
+    ]:
+        if name not in sys.modules:
+            mod = types.ModuleType(name)
+            for attr in attrs:
+                setattr(mod, attr, _StubClass)
+            sys.modules[name] = mod
+
+
 def patch_mlagentbench(model: str):
     """
     Monkey-patch MLAgentBench.LLM (and its consumers) to use our modern API
@@ -84,6 +167,9 @@ def patch_mlagentbench(model: str):
     )
     if mlab_root not in sys.path:
         sys.path.insert(0, mlab_root)
+
+    # Stub heavy/absent dependencies before MLAgentBench imports them
+    _stub_missing_modules()
 
     import MLAgentBench.LLM as _mlab_llm
     import MLAgentBench.agents.agent as _agent_mod
@@ -106,12 +192,14 @@ def patch_mlagentbench(model: str):
 
     # ------------------------------------------------------------------
     # complete_text_fast(prompt, log_file=..., **kwargs)
-    # Used for summarisation — always uses the cheap fast model.
+    # Used for summarisation — uses a cheap fast model matched to the provider.
     # ------------------------------------------------------------------
+    fast_model = "gemini-2.5-flash-lite" if model.startswith("gemini") else FAST_MODEL
+
     def _complete_text_fast(prompt, log_file=None, **kwargs):
         return complete(
             prompt=prompt,
-            model=FAST_MODEL,
+            model=fast_model,
             stop_sequences=[],
             max_tokens=2000,
             temperature=0.01,

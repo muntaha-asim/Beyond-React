@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflexion Lab — MLAgentBench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f1e;--bg-p:#0f1729;--bg-a:#111d31;--bg-c:#0d1526;--bg-t:#0d1117;
+  --b:#1e2d45;--bh:#2a3f5f;
+  --tx:#e2e8f0;--tx2:#94a3b8;--txd:#4a6484;
+  --ac:#00d4aa;--ac-bg:rgba(0,212,170,.11);--ac-b:rgba(0,212,170,.3);
+  --ca:#3b82f6;--ca-bg:rgba(59,130,246,.13);--ca-b:rgba(59,130,246,.35);
+  --cb:#8b5cf6;--cb-bg:rgba(139,92,246,.13);--cb-b:rgba(139,92,246,.35);
+  --cc:#00d4aa;--cc-bg:rgba(0,212,170,.13);--cc-b:rgba(0,212,170,.35);
+  --ok:#22c55e;--ok-bg:rgba(34,197,94,.11);
+  --wn:#f59e0b;--wn-bg:rgba(245,158,11,.11);
+  --er:#ef4444;--er-bg:rgba(239,68,68,.11);
+  --tg:#3fb950;--ty:#e3b341;--tr:#f85149;--tc:#39c5cf;--td:#6e7681;
+  --r:6px;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace
+}
+html,body{height:100%;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--tx);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{cursor:pointer;font-family:var(--font)}
+input,select{font-family:var(--font)}
+
+/* ── Shell ── */
+.app{display:flex;flex-direction:column;height:100vh}
+main{flex:1;overflow:hidden;position:relative}
+
+/* ── Header ── */
+header{display:flex;align-items:center;height:52px;padding:0 20px;gap:0;background:var(--bg-p);border-bottom:1px solid var(--b);flex-shrink:0;position:relative;z-index:10}
+.hlogo{width:28px;height:28px;background:var(--ac);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0f1e;flex-shrink:0;letter-spacing:-.5px}
+.htitle{font-size:14px;font-weight:700;margin-left:10px;margin-right:32px;white-space:nowrap}
+
+/* Tab nav */
+.tabs{display:flex;align-items:stretch;height:100%;gap:0;flex:1}
+.tab-btn{display:flex;align-items:center;padding:0 18px;font-size:13px;font-weight:500;color:var(--txd);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:color .15s,border-color .15s;white-space:nowrap;letter-spacing:.01em}
+.tab-btn:hover{color:var(--tx2)}
+.tab-btn.active{color:var(--tx);border-bottom-color:var(--ac);font-weight:600}
+
+.hright{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.spill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:500;background:var(--bg-a);border:1px solid var(--b);color:var(--tx2)}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--txd);flex-shrink:0}
+.sdot.on{background:var(--ok);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Tab Panels ── */
+.tab-panel{display:none;height:100%;overflow:hidden}
+.tab-panel.active{display:flex;flex-direction:column}
+
+/* ══════════════════════════════════════════════
+   TAB 1 — RUN
+══════════════════════════════════════════════ */
+#tab-run{flex-direction:row!important}
+.run-form-col{flex:0 0 55%;overflow-y:auto;padding:28px 32px;border-right:1px solid var(--b)}
+.run-form-col::-webkit-scrollbar{width:3px}.run-form-col::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+.run-runs-col{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:0}
+.run-runs-col::-webkit-scrollbar{width:3px}.run-runs-col::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+
+.form-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txd);margin-bottom:12px}
+.fg{margin-bottom:18px}
+.fl{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.fi{width:14px;height:14px;border-radius:50%;background:var(--bg-a);border:1px solid var(--b);display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:var(--txd);cursor:help;font-style:normal;font-weight:700;flex-shrink:0;font-family:var(--font)}
+.fc{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--b);border-radius:var(--r);color:var(--tx);font-size:13px;transition:border-color .15s;appearance:none}
+.fc:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-bg)}
+select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.fhint{font-size:11px;color:var(--txd);margin-top:4px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Condition cards */
+.cond-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.cc{padding:14px 10px;border:1px solid var(--b);border-radius:var(--r);background:var(--bg);cursor:pointer;transition:all .15s;text-align:center}
+.cc:hover{border-color:var(--bh)}
+.cc.sel-a{border-color:var(--ca);background:var(--ca-bg)}
+.cc.sel-b{border-color:var(--cb);background:var(--cb-bg)}
+.cc.sel-c{border-color:var(--cc);background:var(--cc-bg)}
+.cc-letter{font-size:20px;font-weight:800;margin-bottom:3px;font-family:var(--mono)}
+.cc-letter.a{color:var(--ca)}.cc-letter.b{color:var(--cb)}.cc-letter.c{color:var(--cc)}
+.cc-name{font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:5px}
+.cc-blurb{font-size:10px;color:var(--txd);line-height:1.4}
+.cond-explain{padding:11px 13px;background:var(--bg-c);border:1px solid var(--b);border-radius:var(--r);font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:18px}
+.cond-explain b{color:var(--tx);font-weight:600}
+.ctag{display:inline-flex;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:700;font-family:var(--mono);margin-right:4px}
+
+/* Task info */
+.task-desc{padding:8px 10px;background:var(--bg-c);border:1px solid var(--b);border-radius:var(--r);font-size:11px;color:var(--tx2);line-height:1.6;margin-top:5px}
+.task-desc b{color:var(--tx);font-weight:600}
+.tmtag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;background:var(--bg-a);border:1px solid var(--b);font-size:10px;font-family:var(--mono);color:var(--tx2);margin-top:4px;margin-right:4px}
+
+/* Launch button */
+.btn-launch{width:100%;padding:12px;background:var(--ac);color:#0a0f1e;font-size:14px;font-weight:700;border:none;border-radius:var(--r);cursor:pointer;transition:background .15s;margin-top:4px}
+.btn-launch:hover{background:#00b896}
+.btn-launch:disabled{opacity:.5;cursor:not-allowed}
+
+/* Shared buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:5px 11px;border-radius:var(--r);font-size:12px;font-weight:500;border:1px solid transparent;transition:all .15s;white-space:nowrap;cursor:pointer;font-family:var(--font)}
+.btn-s{background:var(--bg);border-color:var(--b);color:var(--tx2)}
+.btn-s:hover{border-color:var(--bh);color:var(--tx)}
+.btn-kill{background:transparent;border:1px solid var(--er);color:var(--er);padding:2px 8px;font-size:10px;border-radius:4px}
+.btn-kill:hover{background:var(--er-bg)}
+
+/* Badges */
+.bdg{display:inline-flex;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.ba{background:var(--ca-bg);color:var(--ca);border:1px solid var(--ca-b)}
+.bb{background:var(--cb-bg);color:var(--cb);border:1px solid var(--cb-b)}
+.bc{background:var(--cc-bg);color:var(--cc);border:1px solid var(--cc-b)}
+
+/* Active runs list */
+.runs-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0}
+.runs-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txd)}
+.run-item{padding:10px 12px;border:1px solid var(--b);border-radius:var(--r);background:var(--bg);margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.run-item:hover{border-color:var(--bh)}
+.run-item.cur{border-color:var(--ac);background:var(--ac-bg)}
+.ri-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.ri-id{font-family:var(--mono);font-size:11px;color:var(--txd)}
+.ri-cfg{font-size:11px;color:var(--tx2);margin-bottom:3px}
+.ri-bot{display:flex;align-items:center;justify-content:space-between}
+.ri-el{font-family:var(--mono);font-size:11px;color:var(--txd)}
+.rs-running{color:var(--ok);font-size:11px;font-weight:600}
+.rs-completed{color:var(--ac);font-size:11px;font-weight:600}
+.rs-failed{color:var(--er);font-size:11px;font-weight:600}
+.rs-killed{color:var(--wn);font-size:11px;font-weight:600}
+.empty-state{color:var(--txd);font-size:12px;text-align:center;padding:24px 16px;line-height:1.6}
+
+/* ══════════════════════════════════════════════
+   TAB 2 — MONITOR
+══════════════════════════════════════════════ */
+#tab-monitor{background:var(--bg-t)}
+.term-bar{display:flex;align-items:center;height:44px;padding:0 14px;background:#161b22;border-bottom:1px solid #30363d;gap:10px;flex-shrink:0}
+.term-dots{display:flex;gap:5px;flex-shrink:0}
+.td1{width:10px;height:10px;border-radius:50%;background:#ff5f57}
+.td2{width:10px;height:10px;border-radius:50%;background:#febc2e}
+.td3{width:10px;height:10px;border-radius:50%;background:#28c840}
+.run-sel{background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#8b949e;font-size:11px;font-family:var(--mono);padding:3px 8px;appearance:none;min-width:160px}
+.run-sel:focus{outline:none;border-color:#58a6ff}
+.term-elapsed{font-family:var(--mono);font-size:11px;color:#6e7681;flex:1}
+.term-ctx{padding:8px 16px;background:#161b22;border-bottom:1px solid #21262d;font-size:11px;color:#6e7681;font-family:var(--mono);flex-shrink:0;display:none}
+.term-ctx.vis{display:block}
+.term-ctx b{color:#8b949e}
+.term-out{flex:1;overflow-y:auto;padding:12px 16px;font-family:var(--mono);font-size:12px;line-height:1.65}
+.term-out::-webkit-scrollbar{width:4px}.term-out::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
+.tl{white-space:pre-wrap;word-break:break-all}
+.tg{color:var(--tg)}.ty{color:var(--ty)}.tr{color:var(--tr)}.tc{color:var(--tc)}.tdim{color:var(--td)}.tn{color:#c9d1d9}
+.term-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#21262d;text-align:center;gap:12px;padding:32px}
+.term-empty-icon{font-size:40px}
+.term-empty p{color:#30363d;font-size:12px;font-family:var(--mono);line-height:1.7;max-width:300px}
+.term-banner{margin:10px 16px;padding:10px 14px;border-radius:var(--r);font-family:var(--mono);font-size:12px;border-left:3px solid;display:none;flex-shrink:0}
+.tbanner-ok{background:rgba(34,197,94,.09);border-color:var(--ok);color:var(--tg)}
+.tbanner-fail{background:rgba(239,68,68,.09);border-color:var(--er);color:var(--tr)}
+.log-legend{display:flex;flex-wrap:wrap;gap:10px;padding:7px 16px;border-top:1px solid #21262d;background:#161b22;flex-shrink:0}
+.ll{display:flex;align-items:center;gap:4px;font-size:10px;color:#4a6484;font-family:var(--mono)}
+.lldot{width:7px;height:7px;border-radius:50%}
+
+/* ══════════════════════════════════════════════
+   TAB 3 — RESULTS
+══════════════════════════════════════════════ */
+#tab-results{}
+.res-bar{display:flex;align-items:center;height:48px;padding:0 20px;gap:8px;border-bottom:1px solid var(--b);flex-shrink:0;background:var(--bg-p)}
+.res-bar-title{font-size:13px;font-weight:700;flex:1}
+.res-cnt{font-family:var(--mono);font-size:11px;color:var(--txd)}
+.legend-row{display:flex;gap:14px;padding:7px 20px;border-bottom:1px solid var(--b);flex-shrink:0;background:var(--bg-p)}
+.lg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txd)}
+.lg-dot{width:8px;height:8px;border-radius:50%}
+.res-table-wrap{overflow-y:auto;flex:1;min-height:0}
+.res-table-wrap::-webkit-scrollbar{width:4px}.res-table-wrap::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{position:sticky;top:0;z-index:1;background:var(--bg-p);padding:8px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txd);border-bottom:1px solid var(--b);white-space:nowrap}
+thead th small{display:block;font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--txd);opacity:.65;margin-top:1px}
+tbody tr{border-bottom:1px solid var(--b);cursor:pointer;transition:background .1s}
+tbody tr:hover{background:var(--bg-a)}
+tbody tr.sel{background:var(--ac-bg)}
+tbody td{padding:8px 14px;color:var(--tx2)}
+.td-score{font-family:var(--mono);font-size:12px;color:var(--tx)}
+.td-imp{font-family:var(--mono);font-size:12px;font-weight:700}
+.imp-good{color:var(--ok)}.imp-meh{color:var(--wn)}.imp-bad{color:var(--er)}
+.ms{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.res-footer{padding:9px 20px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg-p)}
+.res-avg{font-family:var(--mono);font-size:11px;color:var(--txd)}
+.res-avg span{color:var(--ac);font-weight:700}
+
+/* Detail panel */
+.det-panel{border-top:1px solid var(--b);flex-shrink:0;height:45%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.det-panel.hidden{display:none}
+.det-hd{display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid var(--b);gap:8px;flex-shrink:0}
+.det-title{font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.det-body{overflow-y:auto;padding:14px;flex:1}
+.det-body::-webkit-scrollbar{width:4px}.det-body::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px}
+.det-meta-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.det-meta-cell{padding:10px 12px;background:var(--bg-c);border:1px solid var(--b);border-radius:var(--r)}
+.dmc-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--txd);margin-bottom:3px}
+.dmc-val{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--tx)}
+.dmc-sub{font-size:10px;color:var(--txd);margin-top:2px}
+.att-block{margin-bottom:9px;border:1px solid var(--b);border-radius:var(--r);overflow:hidden}
+.att-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;background:var(--bg-a);border-bottom:1px solid var(--b);cursor:pointer}
+.att-lbl{font-size:11px;font-weight:600;color:var(--tx2)}
+.att-sc{font-family:var(--mono);font-size:11px;color:var(--ac)}
+.att-arr{font-size:10px;color:var(--txd)}
+.att-steps{display:none;padding:10px}
+.att-steps.open{display:block}
+.step{padding:5px 8px;margin-bottom:3px;border-left:2px solid var(--b);font-size:11px;color:var(--tx2);line-height:1.5}
+.step-n{font-family:var(--mono);color:var(--txd);margin-right:5px}
+.step-obs{color:var(--txd);font-style:italic;margin-top:2px;font-size:10px}
+.show-more{color:var(--ac);cursor:pointer;font-size:10px}
+
+/* ══════════════════════════════════════════════
+   TAB 4 — ABOUT
+══════════════════════════════════════════════ */
+#tab-about{overflow-y:auto;display:block!important}
+#tab-about::-webkit-scrollbar{width:5px}#tab-about::-webkit-scrollbar-thumb{background:var(--b);border-radius:3px}
+.about-wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px}
+.about-hero{margin-bottom:48px}
+.about-hero h1{font-size:28px;font-weight:700;margin-bottom:8px;line-height:1.2}
+.about-hero p{font-size:15px;color:var(--tx2);line-height:1.75;max-width:640px}
+.about-hero .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:100px;background:var(--ac-bg);border:1px solid var(--ac-b);color:var(--ac);font-size:11px;font-weight:600;margin-bottom:16px}
+.about-section{margin-bottom:52px}
+.about-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--txd);margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--b)}
+.about-section p{font-size:14px;color:var(--tx2);line-height:1.8;margin-bottom:12px}
+.about-section p b{color:var(--tx);font-weight:600}
+.about-section p:last-child{margin-bottom:0}
+
+/* Condition cards (About) */
+.about-cond-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.about-cc{padding:18px 16px;border-radius:var(--r);border:1px solid}
+.about-cc.a{background:var(--ca-bg);border-color:var(--ca-b)}
+.about-cc.b{background:var(--cb-bg);border-color:var(--cb-b)}
+.about-cc.c{background:var(--cc-bg);border-color:var(--cc-b)}
+.acc-letter{font-size:22px;font-weight:800;font-family:var(--mono);margin-bottom:3px}
+.acc-letter.a{color:var(--ca)}.acc-letter.b{color:var(--cb)}.acc-letter.c{color:var(--cc)}
+.acc-name{font-size:12px;font-weight:700;color:var(--tx);margin-bottom:8px}
+.acc-body{font-size:12px;color:var(--tx2);line-height:1.65}
+.acc-body b{color:var(--tx)}
+.acc-role{display:inline-block;margin-top:8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--txd)}
+
+/* Task grid (About) */
+.about-task-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.atc{padding:16px;border:1px solid var(--b);border-radius:var(--r);background:var(--bg-c)}
+.atc h4{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:6px;font-family:var(--mono)}
+.atc p{font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:8px}
+.atc-pills{display:flex;flex-wrap:wrap;gap:5px}
+.atc-pill{padding:2px 8px;border-radius:100px;background:var(--bg-a);border:1px solid var(--b);font-size:10px;font-family:var(--mono);color:var(--tx2)}
+
+/* How it works steps */
+.how-steps{display:flex;flex-direction:column;gap:0}
+.how-step{display:flex;gap:16px;padding:14px 0}
+.how-step+.how-step{border-top:1px solid var(--b)}
+.hs-num{width:28px;height:28px;border-radius:50%;background:var(--bg-a);border:1px solid var(--b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ac);flex-shrink:0;font-family:var(--mono)}
+.hs-body{}
+.hs-title{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px}
+.hs-desc{font-size:12px;color:var(--tx2);line-height:1.65}
+.hs-desc b{color:var(--tx)}
+
+/* Team card */
+.team-card{padding:20px;background:var(--bg-c);border:1px solid var(--b);border-radius:var(--r)}
+.team-card h4{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:4px}
+.team-card p{font-size:13px;color:var(--tx2);margin-bottom:2px}
+.team-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.team-badge{padding:4px 12px;border-radius:100px;background:var(--bg-a);border:1px solid var(--b);font-size:11px;color:var(--tx2)}
+
+/* ── Toast ── */
+.toasts{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{padding:9px 15px;border-radius:var(--r);font-size:12px;font-weight:500;border:1px solid;animation:tin .2s ease;pointer-events:auto}
+.tok{background:rgba(34,197,94,.13);border-color:var(--ok);color:var(--ok)}
+.ter{background:rgba(239,68,68,.13);border-color:var(--er);color:var(--er)}
+.tinf{background:rgba(0,212,170,.11);border-color:var(--ac);color:var(--ac)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="hlogo">RL</div>
+    <span class="htitle">Reflexion Lab</span>
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('run')">▶ Run</button>
+      <button class="tab-btn" onclick="switchTab('monitor')">⬛ Monitor</button>
+      <button class="tab-btn" onclick="switchTab('results')">◫ Results</button>
+      <button class="tab-btn" onclick="switchTab('about')">? About</button>
+    </nav>
+    <div class="hright">
+      <div class="spill"><div class="sdot" id="sdot"></div><span id="slbl">Connecting…</span></div>
+      <div class="spill"><span id="rcnt">0 runs</span></div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ══ TAB: RUN ══ -->
+    <div class="tab-panel active" id="tab-run">
+
+      <!-- Left: Form -->
+      <div class="run-form-col">
+        <div class="form-section-title">Configure Experiment</div>
+
+        <!-- Condition -->
+        <div class="fg">
+          <div class="fl">Condition <span class="fi" title="Which experimental setup to run">?</span></div>
+          <div class="cond-cards">
+            <div class="cc" id="cc-A" onclick="pickCond('A')">
+              <div class="cc-letter a">A</div>
+              <div class="cc-name">Baseline</div>
+              <div class="cc-blurb">1 attempt<br>no reflection</div>
+            </div>
+            <div class="cc" id="cc-B" onclick="pickCond('B')">
+              <div class="cc-letter b">B</div>
+              <div class="cc-name">Multi-Attempt</div>
+              <div class="cc-blurb">3 attempts<br>no reflection</div>
+            </div>
+            <div class="cc sel-c" id="cc-C" onclick="pickCond('C')">
+              <div class="cc-letter c">C</div>
+              <div class="cc-name">Reflexion</div>
+              <div class="cc-blurb">3 attempts<br>+ post-mortem</div>
+            </div>
+          </div>
+          <div class="cond-explain" id="cond-explain">
+            <span class="ctag" style="background:var(--cc-bg);color:var(--cc);border:1px solid var(--cc-b)">C — Reflexion</span>
+            <b>Our main contribution.</b> After each attempt the LLM writes a structured critique — what strategies were tried, why they failed, what to do differently. That post-mortem is prepended to the next attempt's system prompt so the agent starts each retry with explicit memory of past failures.
+          </div>
+        </div>
+
+        <!-- Task -->
+        <div class="fg">
+          <div class="fl">Task <span class="fi" title="Which ML benchmark task to run">?</span></div>
+          <select id="sel-task" class="fc" onchange="updateTaskInfo()">
+            <option value="house-price">house-price</option>
+            <option value="spaceship-titanic">spaceship-titanic</option>
+            <option value="vectorization">vectorization</option>
+            <option value="feedback">feedback</option>
+          </select>
+          <div class="task-desc" id="task-desc">
+            <b>Ames Housing — Price Prediction.</b> The agent writes ML code to predict house sale prices from 79 features, iterating on feature engineering and model choice.
+            <br><span class="tmtag">MAE ↓ lower is better</span><span class="tmtag">Baseline: $30,000</span>
+          </div>
+        </div>
+
+        <!-- Model -->
+        <div class="fg">
+          <div class="fl">Model <span class="fi" title="LLM acting as the research agent">?</span></div>
+          <select id="sel-model" class="fc" onchange="updateModelHint()">
+            <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+            <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+            <option value="claude-haiku-4-5-20251001">claude-haiku-4-5-20251001</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+          </select>
+          <div class="fhint" id="model-hint">Recommended for free testing — fast, capable, low cost.</div>
+        </div>
+
+        <!-- Steps + Attempts -->
+        <div class="fg">
+          <div class="frow">
+            <div>
+              <div class="fl">Steps <span class="fi" title="Max actions the agent takes per attempt (each step = one tool call)">?</span></div>
+              <input type="number" id="inp-steps" class="fc" value="30" min="5" max="100">
+              <div class="fhint">Actions per attempt</div>
+            </div>
+            <div>
+              <div class="fl">Attempts <span class="fi" title="How many times to retry (applies to B and C only)">?</span></div>
+              <input type="number" id="inp-att" class="fc" value="3" min="1" max="5">
+              <div class="fhint">Retries (B &amp; C only)</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-launch" id="btn-launch" onclick="launch()">▶ Launch Experiment</button>
+      </div>
+
+      <!-- Right: Active Runs -->
+      <div class="run-runs-col">
+        <div class="runs-hd">
+          <span class="runs-title">Active Runs</span>
+          <button class="btn btn-s" onclick="syncRuns()">⟳ Sync</button>
+        </div>
+        <div style="font-size:11px;color:var(--txd);line-height:1.6;margin-bottom:14px">
+          Click a row to watch it live in the Monitor tab. Runs persist across browser refreshes.
+        </div>
+        <div id="runs-list"><div class="empty-state">No runs yet — configure and launch one.</div></div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: MONITOR ══ -->
+    <div class="tab-panel" id="tab-monitor">
+      <div class="term-bar">
+        <div class="term-dots"><div class="td1"></div><div class="td2"></div><div class="td3"></div></div>
+        <select class="run-sel" id="run-sel" onchange="switchActiveRun(this.value)">
+          <option value="">— select a run —</option>
+        </select>
+        <span class="term-elapsed" id="telapsed"></span>
+        <button class="btn btn-s" onclick="copyLog()">⧉ Copy</button>
+        <button class="btn btn-s" onclick="clearTerm()">✕ Clear</button>
+      </div>
+      <div class="term-ctx" id="term-ctx"></div>
+      <div class="term-out" id="tout">
+        <div class="term-empty">
+          <div class="term-empty-icon">▮</div>
+          <p>Launch an experiment from the Run tab, or select an existing run from the dropdown above.</p>
+        </div>
+      </div>
+      <div class="term-banner" id="tbanner"></div>
+      <div class="log-legend">
+        <div class="ll"><div class="lldot" style="background:var(--tc)"></div>system / events</div>
+        <div class="ll"><div class="lldot" style="background:var(--tg)"></div>success / score saved</div>
+        <div class="ll"><div class="lldot" style="background:var(--ty)"></div>warnings / retries</div>
+        <div class="ll"><div class="lldot" style="background:var(--tr)"></div>errors</div>
+        <div class="ll"><div class="lldot" style="background:#c9d1d9"></div>agent output</div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: RESULTS ══ -->
+    <div class="tab-panel" id="tab-results">
+      <div class="res-bar">
+        <span class="res-bar-title">Experiment Results</span>
+        <span class="res-cnt" id="res-cnt">0 experiments</span>
+        <button class="btn btn-s" onclick="loadResults()">⟳ Refresh</button>
+        <button class="btn btn-s" onclick="copyLatex()">⊞ Copy LaTeX</button>
+        <button class="btn btn-s" onclick="exportAllJSON()">⬇ JSON</button>
+      </div>
+      <div class="legend-row">
+        <div class="lg-item"><div class="lg-dot" style="background:var(--ok)"></div>Δ% &gt;20% — strong improvement</div>
+        <div class="lg-item"><div class="lg-dot" style="background:var(--wn)"></div>0–20% — marginal gain</div>
+        <div class="lg-item"><div class="lg-dot" style="background:var(--er)"></div>negative — worse than baseline</div>
+        <div class="lg-item" style="margin-left:auto;color:var(--txd);font-size:11px">Click any row to expand detail</div>
+      </div>
+      <div class="res-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Condition<small>A / B / C</small></th>
+              <th>Task</th>
+              <th>Model</th>
+              <th>Score<small>final metric</small></th>
+              <th>Unit</th>
+              <th>Δ%<small>vs baseline</small></th>
+              <th>Att.<small>attempts</small></th>
+            </tr>
+          </thead>
+          <tbody id="rtbody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txd);font-size:13px">No experiments yet. Go to the Run tab to launch one.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="res-footer">
+        <span class="res-avg" id="res-avg">—</span>
+        <button class="btn btn-s" onclick="exportAllJSON()">⬇ Export all JSON</button>
+      </div>
+      <div class="det-panel hidden" id="det-panel">
+        <div class="det-hd">
+          <span class="det-title" id="det-title">—</span>
+          <button class="btn btn-s" onclick="copyDetLatex()">LaTeX</button>
+          <button class="btn btn-s" onclick="exportDetJSON()">JSON</button>
+          <button class="btn btn-s" onclick="closeDet()">✕</button>
+        </div>
+        <div class="det-body" id="det-body"></div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: ABOUT ══ -->
+    <div class="tab-panel" id="tab-about">
+      <div class="about-wrap">
+
+        <div class="about-hero">
+          <div class="tag">🔬 Agentic AI — Final Project · April 2026</div>
+          <h1>Can reflection make AI agents smarter?</h1>
+          <p>This dashboard runs and tracks experiments from our Agentic AI course project at FAST NUCES. We study whether giving an LLM agent structured feedback about its own failures — before each retry — improves its performance on real machine learning tasks.</p>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">What is this research?</div>
+          <p><b>The benchmark:</b> MLAgentBench is a framework where a language model acts as an autonomous ML researcher. It reads data, writes code, runs experiments, and iterates — all without human guidance — trying to beat a baseline score on standard ML tasks.</p>
+          <p><b>The problem:</b> Even the best models hallucinate improvements. They often repeat the same mistakes across attempts because they have no memory of what already failed.</p>
+          <p><b>Our contribution — Cross-Run Reflexion:</b> After each failed attempt, we ask the LLM to produce a structured post-mortem: what strategies were tried, why they didn't work, and what to do differently. That critique is injected into the next attempt's prompt. The agent now starts each retry with <b>explicit memory of its own past failures.</b></p>
+          <p><b>The hypothesis:</b> Condition C (Reflexion) should outperform Condition A (baseline) and Condition B (extra retries with no feedback), because the reflection provides a qualitative signal that raw compute alone cannot.</p>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">The Three Conditions</div>
+          <div class="about-cond-cards">
+            <div class="about-cc a">
+              <div class="acc-letter a">A</div>
+              <div class="acc-name">Baseline</div>
+              <div class="acc-body">The agent gets <b>one attempt</b> with no prior feedback. This replicates the original MLAgentBench paper setup. Whatever score it gets cold is the baseline performance of a vanilla LLM agent.<br><span class="acc-role">Controls for: raw capability</span></div>
+            </div>
+            <div class="about-cc b">
+              <div class="acc-letter b">B</div>
+              <div class="acc-name">Multi-Attempt</div>
+              <div class="acc-body">The agent gets <b>three attempts</b> but receives <b>no structured critique</b> between them — just a fresh start. This isolates whether improvement in C comes from reflection specifically, or simply from having more compute and retries.<br><span class="acc-role">Controls for: extra compute</span></div>
+            </div>
+            <div class="about-cc c">
+              <div class="acc-letter c">C</div>
+              <div class="acc-name">Reflexion Agent</div>
+              <div class="acc-body">Three attempts + a <b>post-mortem between each.</b> The LLM critiques its own trajectory: strategies tried, what failed, what to try next. That critique is prepended to the next attempt's system prompt.<br><span class="acc-role">Our contribution: reflection</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">The Four Tasks</div>
+          <div class="about-task-grid">
+            <div class="atc">
+              <h4>house-price</h4>
+              <p>Predict Ames Housing sale prices from 79 features (lot size, neighborhood, build quality, etc.). The agent writes preprocessing, feature engineering, and model training code — typically LightGBM or XGBoost.</p>
+              <div class="atc-pills"><span class="atc-pill">MAE ↓ lower is better</span><span class="atc-pill">Baseline: $30,000</span></div>
+            </div>
+            <div class="atc">
+              <h4>spaceship-titanic</h4>
+              <p>Binary classification: predict which passengers were transported in a sci-fi space disaster. Tabular data with engineered features from cabin numbers, group IDs, and spend records.</p>
+              <div class="atc-pills"><span class="atc-pill">Accuracy ↑</span><span class="atc-pill">Baseline: 72%</span></div>
+            </div>
+            <div class="atc">
+              <h4>vectorization</h4>
+              <p>Optimize a slow pure-Python loop using NumPy vectorization. Tests the agent's ability to reason about code performance and apply vectorized operations correctly.</p>
+              <div class="atc-pills"><span class="atc-pill">Speedup ↑</span><span class="atc-pill">No fixed baseline</span></div>
+            </div>
+            <div class="atc">
+              <h4>feedback</h4>
+              <p>Classify student feedback text into sentiment categories. Multi-class text classification requiring feature extraction (TF-IDF, embeddings) and model selection.</p>
+              <div class="atc-pills"><span class="atc-pill">Macro-F1 ↑</span><span class="atc-pill">Baseline: 0.50</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">How Condition C Works</div>
+          <div class="how-steps">
+            <div class="how-step">
+              <div class="hs-num">1</div>
+              <div class="hs-body">
+                <div class="hs-title">Attempt 1 — Cold Start</div>
+                <div class="hs-desc">The agent reads the task description and baseline code, then autonomously writes and runs ML code for up to <b>30 steps</b>. At the end, the benchmark scores its final submission.</div>
+              </div>
+            </div>
+            <div class="how-step">
+              <div class="hs-num">2</div>
+              <div class="hs-body">
+                <div class="hs-title">Post-Mortem Generation</div>
+                <div class="hs-desc">If the score didn't beat the baseline, we send the agent's full action history to the LLM and ask it to produce a structured critique: <b>what was tried, why it failed, what to do differently, what to avoid</b>.</div>
+              </div>
+            </div>
+            <div class="how-step">
+              <div class="hs-num">3</div>
+              <div class="hs-body">
+                <div class="hs-title">Reflection Injection</div>
+                <div class="hs-desc">The post-mortem is <b>prepended to the next attempt's system prompt</b>. The agent now starts attempt 2 knowing exactly what its past self already tried and why it didn't work.</div>
+              </div>
+            </div>
+            <div class="how-step">
+              <div class="hs-num">4</div>
+              <div class="hs-body">
+                <div class="hs-title">Attempt 2 (and 3) — Informed Retry</div>
+                <div class="hs-desc">The agent retries with the critique in context. If it fails again, the cycle repeats: another post-mortem, another injection. Up to <b>3 attempts</b> total.</div>
+              </div>
+            </div>
+            <div class="how-step">
+              <div class="hs-num">5</div>
+              <div class="hs-body">
+                <div class="hs-title">Final Score</div>
+                <div class="hs-desc">The best score across all attempts is recorded. Improvement is measured as <b>Δ% = (baseline − score) / baseline</b> for lower-is-better metrics, inverted for higher-is-better.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-section-title">Team &amp; Course</div>
+          <div class="team-card">
+            <h4>Group 1 — FAST NUCES</h4>
+            <p>Agentic AI Course · Spring 2026</p>
+            <p>Muntaha Asim &amp; Ammar Kashif</p>
+            <div class="team-badges">
+              <span class="team-badge">MLAgentBench</span>
+              <span class="team-badge">Cross-Run Reflexion</span>
+              <span class="team-badge">Gemini · Claude · GPT-4o</span>
+              <span class="team-badge">April 2026</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ── Metadata ───────────────────────────────────────────────────────────────
+const COND_INFO = {
+  A:{ tag:'A — Baseline', color:'var(--ca)', bg:'var(--ca-bg)', border:'var(--ca-b)',
+      desc:'<b>The control.</b> The agent gets one attempt with no prior feedback. Replicates the original MLAgentBench paper. Whatever score it gets cold is the baseline performance of a vanilla LLM agent.' },
+  B:{ tag:'B — Multi-Attempt', color:'var(--cb)', bg:'var(--cb-bg)', border:'var(--cb-b)',
+      desc:'<b>The ablation.</b> Three attempts, no structured critique between them. Isolates whether improvement in C comes from reflection specifically, or simply from having more retries and compute.' },
+  C:{ tag:'C — Reflexion', color:'var(--cc)', bg:'var(--cc-bg)', border:'var(--cc-b)',
+      desc:'<b>Our main contribution.</b> After each attempt the LLM writes a structured critique — what strategies were tried, why they failed, what to do differently. That post-mortem is prepended to the next attempt\'s system prompt.' },
+};
+const TASK_INFO = {
+  'house-price':{
+    title:'Ames Housing — Price Prediction',
+    desc:'The agent writes ML code to predict house sale prices from 79 features, iterating on feature engineering, model choice (LightGBM, XGBoost), and hyperparameters.',
+    pills:['MAE ↓ lower is better','Baseline: $30,000'],
+  },
+  'spaceship-titanic':{
+    title:'Spaceship Titanic — Passenger Classification',
+    desc:'Binary classification: predict which passengers were transported in a sci-fi disaster. Tabular data with group IDs, cabin info, and spend records.',
+    pills:['Accuracy ↑ higher is better','Baseline: 72%'],
+  },
+  'vectorization':{
+    title:'NumPy Vectorization — Loop Optimization',
+    desc:'Rewrite a slow Python loop using NumPy vectorization for a measurable speedup. Tests code performance reasoning.',
+    pills:['Speedup ↑ higher is better','No fixed baseline'],
+  },
+  'feedback':{
+    title:'Student Feedback — Sentiment Classification',
+    desc:'Multi-class text classification of student feedback. Requires feature extraction and model selection.',
+    pills:['Macro-F1 ↑ higher is better','Baseline: 0.50'],
+  },
+};
+const MODEL_HINTS = {
+  'gemini-2.5-flash':'Recommended for free testing — fast, capable, low cost.',
+  'gemini-2.5-flash-lite':'Cheapest Gemini option, good for quick ablations.',
+  'claude-sonnet-4-6':'Latest Claude Sonnet. Strong reasoning, moderate cost.',
+  'claude-3-5-sonnet-20241022':'Claude 3.5 Sonnet — top-tier code generation, higher cost.',
+  'claude-haiku-4-5-20251001':'Fast Claude model used internally for summarization.',
+  'gpt-4o':'OpenAI flagship. Excellent on code. Costs money per call.',
+  'gpt-4o-mini':'Cheaper GPT-4o variant for quick OpenAI tests.',
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+const S = {
+  activeCond:'C', results:[], sortedResults:[],
+  runs:{}, activeRunId:null,
+  selResult:null, selResultData:null,
+  obsStore:{}, obsKey:0,
+};
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  pickCond('C'); updateTaskInfo(); updateModelHint();
+  await loadResults();
+  await syncRuns();
+  setInterval(loadResults, 30000);
+  setInterval(tickTimers, 1000);
+  ping();
+});
+
+async function ping() {
+  try {
+    await fetch('/api/config');
+    document.getElementById('sdot').classList.add('on');
+    document.getElementById('slbl').textContent = 'Server online';
+  } catch {
+    document.getElementById('slbl').textContent = 'Server offline — run dashboard/server.py';
+  }
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(name.slice(0,3))) b.classList.add('active');
+  });
+}
+
+// ── Condition picker ───────────────────────────────────────────────────────
+function pickCond(c) {
+  S.activeCond = c;
+  ['A','B','C'].forEach(x => {
+    const el = document.getElementById(`cc-${x}`);
+    el.className = 'cc' + (x===c ? ` sel-${x.toLowerCase()}` : '');
+  });
+  const info = COND_INFO[c];
+  document.getElementById('cond-explain').innerHTML =
+    `<span class="ctag" style="background:${info.bg};color:${info.color};border:1px solid ${info.border}">${info.tag}</span>${info.desc}`;
+}
+
+function updateTaskInfo() {
+  const t = document.getElementById('sel-task').value;
+  const i = TASK_INFO[t] || {};
+  document.getElementById('task-desc').innerHTML =
+    `<b>${i.title || t}.</b> ${i.desc || ''}<br>${(i.pills||[]).map(p=>`<span class="tmtag">${p}</span>`).join('')}`;
+}
+
+function updateModelHint() {
+  const m = document.getElementById('sel-model').value;
+  document.getElementById('model-hint').textContent = MODEL_HINTS[m] || '';
+}
+
+// ── Launch ──────────────────────────────────────────────────────────────────
+async function launch() {
+  const cfg = {
+    condition: S.activeCond,
+    task:      document.getElementById('sel-task').value,
+    model:     document.getElementById('sel-model').value,
+    steps:     parseInt(document.getElementById('inp-steps').value)||30,
+    attempts:  parseInt(document.getElementById('inp-att').value)||3,
+  };
+  const btn = document.getElementById('btn-launch');
+  btn.disabled = true; btn.textContent = '⏳ Launching…';
+  try {
+    const res = await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error||'Launch failed');
+    const id = d.run_id;
+    S.runs[id] = {cfg, status:'running', startedAt:Date.now(), lines:[], sse:null};
+    renderRuns(); updateRunSelector();
+    S.activeRunId = id;
+    streamRun(id);
+    switchTab('monitor');
+    toast(`Run #${id} launched — switching to Monitor`, 'tinf');
+  } catch(e) { toast(e.message, 'ter'); }
+  finally { btn.disabled=false; btn.textContent='▶ Launch Experiment'; }
+}
+
+// ── SSE ─────────────────────────────────────────────────────────────────────
+function streamRun(id, goToMonitor=false) {
+  const run = S.runs[id];
+  if (!run) return;
+  if (run.sse) run.sse.close();
+  S.activeRunId = id;
+  document.getElementById('run-sel').value = id;
+  updateTermCtx(id);
+  clearTermOut();
+  if (run.lines.length) run.lines.forEach(l => addLine(l));
+  if (['completed','failed','killed'].includes(run.status)) { showBanner(run.status); return; }
+  if (goToMonitor) switchTab('monitor');
+  const sse = new EventSource(`/api/stream/${id}`);
+  run.sse = sse;
+  sse.onmessage = e => {
+    if (e.data==='[heartbeat]') return;
+    try {
+      const m = JSON.parse(e.data);
+      if (m.type==='log') { run.lines.push(m.text); if (S.activeRunId===id) addLine(m.text); }
+      else if (m.type==='done') {
+        run.status = m.status||'completed';
+        renderRuns(); updateRunSelector();
+        if (S.activeRunId===id) showBanner(m.status);
+        sse.close(); loadResults();
+      }
+    } catch {}
+  };
+  sse.onerror = () => {
+    sse.close();
+    const r = S.runs[id];
+    if (!r||['completed','failed','killed'].includes(r.status)) return;
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/log/${id}`);
+        const d = await res.json();
+        r.lines = (d.log||'').split('\n').filter(Boolean).map(l=>l+'\n');
+        if (d.status && d.status!=='running') {
+          r.status=d.status; renderRuns(); updateRunSelector();
+          if (S.activeRunId===id) { clearTermOut(); r.lines.forEach(l=>addLine(l)); showBanner(d.status); }
+          return;
+        }
+        streamRun(id);
+      } catch {}
+    }, 3000);
+  };
+}
+
+function switchActiveRun(id) {
+  if (!id||!S.runs[id]) return;
+  S.activeRunId = id;
+  updateTermCtx(id);
+  clearTermOut();
+  const run = S.runs[id];
+  if (run.lines.length) run.lines.forEach(l => addLine(l));
+  if (['completed','failed','killed'].includes(run.status)) showBanner(run.status);
+  else if (!run.sse || run.sse.readyState===2) streamRun(id);
+}
+
+// ── Terminal ──────────────────────────────────────────────────────────────
+function clearTermOut() {
+  document.getElementById('tout').innerHTML='';
+  const b=document.getElementById('tbanner'); b.style.display='none'; b.className='term-banner';
+}
+function clearTerm() { clearTermOut(); if (S.activeRunId&&S.runs[S.activeRunId]) S.runs[S.activeRunId].lines=[]; }
+function addLine(text) {
+  const out=document.getElementById('tout');
+  if (out.querySelector('.term-empty')) out.innerHTML='';
+  const d=document.createElement('div'); d.className='tl '+classify(text); d.textContent=text;
+  out.appendChild(d); out.scrollTop=out.scrollHeight;
+}
+function classify(t) {
+  const l=t.toLowerCase();
+  if (/error|exception|traceback|failed\b/.test(l)) return 'tr';
+  if (/saved →|final score|completed|success/.test(l)) return 'tg';
+  if (/retrying|overload|503|429|resource_exhausted/.test(l)) return 'ty';
+  if (/\[run_experiment\]|\[reflexion\]|\[llm\]|\[agent\]|\[score\]/.test(l)) return 'tc';
+  if (/^\s*$/.test(t)) return 'tdim';
+  return 'tn';
+}
+function updateTermCtx(id) {
+  const run=S.runs[id]; if (!run) return;
+  const c=run.cfg; const ci=COND_INFO[c.condition]||{};
+  const ctx=document.getElementById('term-ctx');
+  ctx.className='term-ctx vis';
+  ctx.innerHTML=`<b>Watching:</b> Run #${id} · Condition ${c.condition} · ${c.task} · ${c.model} · ${c.steps} steps · ${c.attempts} attempts`;
+}
+function showBanner(status) {
+  const b=document.getElementById('tbanner'); const ok=status==='completed';
+  b.className='term-banner '+(ok?'tbanner-ok':'tbanner-fail');
+  b.textContent=ok?'✓ Run completed — results saved and refreshed.':`✗ Run ended: ${status}. Check log above for errors.`;
+  b.style.display='block';
+}
+function copyLog() {
+  const txt=Array.from(document.getElementById('tout').querySelectorAll('.tl')).map(e=>e.textContent).join('');
+  clip(txt,'Log copied to clipboard');
+}
+function updateRunSelector() {
+  const sel=document.getElementById('run-sel');
+  const ids=Object.keys(S.runs);
+  sel.innerHTML='<option value="">— select a run —</option>'+
+    ids.slice().reverse().map(id=>{
+      const r=S.runs[id];
+      return `<option value="${id}" ${id===S.activeRunId?'selected':''}>#${id} · C${r.cfg.condition} · ${r.cfg.task} · ${r.status}</option>`;
+    }).join('');
+}
+
+// ── Active runs list ───────────────────────────────────────────────────────
+function renderRuns() {
+  const list=document.getElementById('runs-list');
+  const cnt=document.getElementById('rcnt');
+  const ids=Object.keys(S.runs);
+  cnt.textContent=`${ids.length} run${ids.length!==1?'s':''}`;
+  if (!ids.length) { list.innerHTML='<div class="empty-state">No runs yet — configure and launch one.</div>'; return; }
+  list.innerHTML=ids.slice().reverse().map(id=>{
+    const r=S.runs[id]; const c=r.cfg;
+    const stTxt={running:'🟢 running',completed:'✅ done',failed:'❌ failed',killed:'🔴 killed'}[r.status]||r.status;
+    const stCls=`rs-${r.status}`;
+    const cur=id===S.activeRunId;
+    const canKill=r.status==='running';
+    return `<div class="run-item${cur?' cur':''}" onclick="openRun('${id}')">
+      <div class="ri-top"><span class="ri-id">#${id}</span><span class="${stCls}">${stTxt}</span></div>
+      <div class="ri-cfg"><span class="bdg b${c.condition.toLowerCase()}">${c.condition}</span> ${c.task} · ${abbr(c.model)}</div>
+      <div class="ri-bot">
+        <span class="ri-el" id="el-${id}">${fmtEl(Date.now()-r.startedAt)}</span>
+        ${canKill?`<button class="btn-kill" onclick="event.stopPropagation();killRun('${id}')">Kill</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openRun(id) {
+  S.activeRunId = id;
+  streamRun(id, true);
+}
+
+async function syncRuns() {
+  try {
+    const res=await fetch('/api/status'); const data=await res.json();
+    for (const r of data) {
+      if (!S.runs[r.run_id]) S.runs[r.run_id]={cfg:r.config,status:r.status,startedAt:new Date(r.started_at).getTime(),lines:[],sse:null};
+      else S.runs[r.run_id].status=r.status;
+    }
+    renderRuns(); updateRunSelector();
+  } catch {}
+}
+
+async function killRun(id) {
+  try {
+    await fetch(`/api/kill/${id}`,{method:'POST'});
+    if (S.runs[id]) S.runs[id].status='killed';
+    renderRuns(); updateRunSelector(); toast(`Run #${id} killed`,'tinf');
+  } catch { toast('Kill failed','ter'); }
+}
+
+function tickTimers() {
+  const now=Date.now();
+  for (const id of Object.keys(S.runs)) {
+    const el=document.getElementById(`el-${id}`);
+    if (el) el.textContent=fmtEl(now-S.runs[id].startedAt);
+  }
+  const te=document.getElementById('telapsed');
+  if (S.activeRunId&&S.runs[S.activeRunId]) {
+    const r=S.runs[S.activeRunId];
+    te.textContent=r.status==='running'?'⏱ '+fmtEl(now-r.startedAt):r.status+' · '+fmtEl(now-r.startedAt);
+  }
+}
+
+// ── Results ────────────────────────────────────────────────────────────────
+async function loadResults() {
+  try { const r=await fetch('/api/results'); S.results=await r.json(); renderResults(); } catch {}
+}
+
+function renderResults() {
+  const tbody=document.getElementById('rtbody');
+  const cnt=document.getElementById('res-cnt');
+  const avg=document.getElementById('res-avg');
+  cnt.textContent=`${S.results.length} experiment${S.results.length!==1?'s':''}`;
+  if (!S.results.length) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txd);font-size:13px">No experiments yet. Go to the Run tab to launch one.</td></tr>';
+    avg.innerHTML='—'; return;
+  }
+  S.sortedResults=[...S.results].sort((a,b)=>a.condition.localeCompare(b.condition)||a.task.localeCompare(b.task)||a.model.localeCompare(b.model));
+  tbody.innerHTML=S.sortedResults.map((r,i)=>{
+    const bc=`bdg b${r.condition.toLowerCase()}`;
+    const sc=r.final_score!=null?fmtScore(r.final_score):'—';
+    const ip=r.improvement_pct!=null?`${r.improvement_pct>0?'+':''}${r.improvement_pct}%`:'—';
+    const ipc=r.improvement_pct!=null?(r.improvement_pct>20?'imp-good':r.improvement_pct>=0?'imp-meh':'imp-bad'):'';
+    return `<tr onclick="selResult(${i})">
+      <td><span class="${bc}">${r.condition}</span></td>
+      <td>${r.task}</td>
+      <td><span class="ms" title="${r.model}">${abbr(r.model)}</span></td>
+      <td class="td-score">${sc}</td>
+      <td style="color:var(--tx2);font-size:11px">${r.unit||'—'}</td>
+      <td class="td-imp ${ipc}">${ip}</td>
+      <td>${r.n_attempts||'—'}</td>
+    </tr>`;
+  }).join('');
+  const valid=S.results.filter(r=>r.improvement_pct!=null);
+  if (valid.length) {
+    const a=valid.reduce((s,r)=>s+r.improvement_pct,0)/valid.length;
+    avg.innerHTML=`Avg improvement: <span>${a>0?'+':''}${a.toFixed(1)}%</span> across ${valid.length} scored run${valid.length!==1?'s':''}`;
+  } else avg.innerHTML='—';
+}
+
+async function selResult(i) {
+  const r=S.sortedResults[i]; S.selResult=r;
+  document.querySelectorAll('#rtbody tr').forEach((tr,ti)=>tr.classList.toggle('sel',ti===i));
+  try {
+    const res=await fetch(r.path); S.selResultData=await res.json(); renderDet(r,S.selResultData);
+  } catch { toast('Failed to load detail','ter'); }
+}
+
+function renderDet(meta, data) {
+  document.getElementById('det-panel').classList.remove('hidden');
+  document.getElementById('det-title').textContent=`${meta.condition} · ${meta.task} · ${meta.model}`;
+  const body=document.getElementById('det-body');
+  const sc=meta.final_score!=null?fmtScore(meta.final_score):'N/A';
+  const bl=meta.baseline!=null?fmtScore(meta.baseline):'N/A';
+  const ip=meta.improvement_pct!=null?`${meta.improvement_pct>0?'+':''}${meta.improvement_pct}%`:'N/A';
+  const ipColor=meta.improvement_pct!=null?(meta.improvement_pct>0?'var(--ok)':meta.improvement_pct<0?'var(--er)':'var(--tx)'):'var(--tx)';
+  const ti=TASK_INFO[meta.task]||{};
+
+  const metaHtml=`<div class="det-meta-grid">
+    <div class="det-meta-cell"><div class="dmc-label">Score</div><div class="dmc-val">${sc}</div><div class="dmc-sub">${meta.unit||''}</div></div>
+    <div class="det-meta-cell"><div class="dmc-label">Baseline</div><div class="dmc-val">${bl}</div><div class="dmc-sub">${meta.unit||''}</div></div>
+    <div class="det-meta-cell"><div class="dmc-label">Improvement</div><div class="dmc-val" style="color:${ipColor}">${ip}</div><div class="dmc-sub">vs baseline</div></div>
+  </div>`;
+
+  const atts=data.attempts||[];
+  if (!atts.length) { body.innerHTML=metaHtml+'<div class="empty-state">No attempt data recorded.</div>'; return; }
+
+  const attsHtml=atts.map((att,ai)=>{
+    const asc=att.final_score!=null?fmtScore(att.final_score):'N/A';
+    const steps=(att.history_steps||[]).slice(0,60);
+    const stepsHtml=steps.map((s,si)=>{
+      const act=s.action||{};
+      const thought=(act['Thought']||act['Reflection']||'').trim().slice(0,260);
+      const obsRaw=(s.observation||'').trim();
+      const obs=obsRaw.slice(0,260);
+      const hasMore=obsRaw.length>260;
+      let more='';
+      if (hasMore) { const k=++S.obsKey; S.obsStore[k]=obsRaw; more=` <span class="show-more" onclick="expandObs(this,${k})">…more</span>`; }
+      return `<div class="step"><span class="step-n">S${s.step_idx||si+1}</span>${esc(thought)}${obs?`<div class="step-obs">${esc(obs)}${more}</div>`:''}  </div>`;
+    }).join('');
+    const refl=att.reflection||'';
+    const reflHtml=refl?`<div style="padding:9px 10px;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.2);border-radius:5px;font-size:11px;color:var(--tx2);line-height:1.65;margin-bottom:9px"><b style="color:var(--ac)">🪞 Post-mortem (Reflexion):</b><br>${esc(refl.slice(0,600))}${refl.length>600?'…':''}</div>`:'';
+    return `<div class="att-block">
+      <div class="att-hd" onclick="togAtt(this)">
+        <span class="att-lbl">Attempt ${ai+1} of ${atts.length}</span>
+        <span class="att-sc">Score: ${asc}</span>
+        <span class="att-arr">▾</span>
+      </div>
+      <div class="att-steps">${reflHtml}${stepsHtml||'<div class="empty-state">No step data.</div>'}</div>
+    </div>`;
+  }).join('');
+  body.innerHTML=metaHtml+attsHtml;
+}
+
+function togAtt(hd) {
+  const s=hd.nextElementSibling; s.classList.toggle('open');
+  hd.querySelector('.att-arr').textContent=s.classList.contains('open')?'▴':'▾';
+}
+function expandObs(el,k) { el.parentElement.innerHTML=esc(S.obsStore[k]); }
+function closeDet() {
+  document.getElementById('det-panel').classList.add('hidden');
+  document.querySelectorAll('#rtbody tr').forEach(tr=>tr.classList.remove('sel'));
+  S.selResult=null; S.selResultData=null;
+}
+
+// ── LaTeX / Export ─────────────────────────────────────────────────────────
+function copyLatex() { clip(buildLatex(S.results),'LaTeX table copied'); }
+function copyDetLatex() { if (S.selResult) clip(buildLatex([S.selResult]),'LaTeX copied'); }
+function buildLatex(rows) {
+  const body=rows.map(r=>{
+    const sc=r.final_score!=null?fmtScore(r.final_score):'N/A';
+    const bl=r.baseline!=null?fmtScore(r.baseline):'N/A';
+    const dp=r.improvement_pct!=null?`$${r.improvement_pct>0?'+':''}${r.improvement_pct}\\%$`:'N/A';
+    return `${r.condition} & ${r.task} & \\texttt{${r.model}} & ${sc} & ${bl} & ${dp} \\\\`;
+  }).join('\n');
+  return `\\begin{table}[h]\n\\centering\n\\caption{MLAgentBench Cross-Run Reflexion --- Experiment Results}\n\\label{tab:results}\n\\begin{tabular}{llp{3.2cm}rrr}\n\\hline\n\\textbf{Cond.} & \\textbf{Task} & \\textbf{Model} & \\textbf{Score} & \\textbf{Baseline} & \\textbf{$\\Delta\\%$} \\\\\n\\hline\n${body}\n\\hline\n\\end{tabular}\n\\end{table}`;
+}
+function exportAllJSON() { dl(JSON.stringify(S.results,null,2),`reflexion-results-${ts()}.json`); }
+function exportDetJSON() {
+  if (!S.selResultData) return;
+  const r=S.selResult;
+  dl(JSON.stringify(S.selResultData,null,2),`${r.condition}-${r.task}-${abbr(r.model)}.json`);
+}
+function dl(content,filename) {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:'application/json'}));
+  a.download=filename; a.click();
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function abbr(m) {
+  return m.replace('claude-3-5-sonnet-20241022','sonnet-3.5').replace('claude-haiku-4-5-20251001','haiku-4.5')
+    .replace('claude-sonnet-4-6','sonnet-4.6').replace('gemini-2.5-flash-lite','g2.5-lite').replace('gemini-2.5-flash','g2.5-flash');
+}
+function fmtScore(v) {
+  if (v==null) return '—';
+  if (Math.abs(v)>999) return Math.round(v).toLocaleString();
+  if (Math.abs(v)<1) return v.toFixed(4);
+  return v.toFixed(2);
+}
+function fmtEl(ms) {
+  const s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);
+  if (h>0) return `${h}h ${m%60}m`;
+  if (m>0) return `${m}m ${s%60}s`;
+  return `${s}s`;
+}
+function ts() { return new Date().toISOString().slice(0,10); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function clip(text,msg) {
+  navigator.clipboard.writeText(text).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+  toast(msg,'tok');
+}
+function toast(msg,cls='tinf') {
+  const el=document.createElement('div'); el.className=`toast ${cls}`; el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+</script>
+</body>
+</html>

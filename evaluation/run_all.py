@@ -22,8 +22,8 @@ for p in (_PROJECT, _MLAB):
 from evaluation.run_experiment import run_experiment, _model_slug, RESULTS_DIR
 from evaluation.metrics import compute_metrics
 
-ALL_TASKS = ["house-price", "spaceship-titanic", "vectorization", "feedback"]
-ALL_MODELS = ["claude-3-5-sonnet-20241022", "gpt-4o"]
+ALL_TASKS = ["house-price", "vectorization"]
+ALL_MODELS = ["claude-sonnet-4-6", "gemini-2.5-flash"]
 ALL_CONDITIONS = ["A", "B", "C"]
 
 
