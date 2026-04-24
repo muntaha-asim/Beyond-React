@@ -36,3 +36,8 @@ results/summary.json
 
 # MLAgentBench workspace artifacts
 workspace/
+
+# Submodule runtime artifacts — prevent 'untracked content' in git status
+implementation/MLAgentBench/MLAgentBench/benchmarks/*/env/
+implementation/MLAgentBench/MLAgentBench/benchmarks/*/work/
+implementation/MLAgentBench/
