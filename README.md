@@ -1,26 +1,21 @@
 # Autonomous ML Experimentation Agent with Cross-Run Reflexion
 
-**Course:** Agentic AI — Final Semester Project  
-**University:** FAST National University of Computer & Emerging Sciences  
-**Authors:** Muntaha Asim · Muhammad Ammar Kashif  
+**Course:** Agentic AI — Final Semester Project
+**University:** FAST National University of Computer & Emerging Sciences
+**Authors:** Muntaha Asim · Muhammad Ammar Kashif
+
+> **Survey paper:** `papers/Beyond ReAct.pdf`
+> **MLAgentBench paper:** `papers/Huang 24y.pdf`
 
 ---
 
-## Overview
+## What This Project Does
 
-This project investigates whether adding a structured **cross-run Reflexion** mechanism to an LLM-based ML experimentation agent reduces hallucination and improves task success rates.
+We add **cross-run Reflexion** to MLAgentBench's ResearchAgent and measure whether it reduces hallucination and improves task success.
 
-We build on top of [MLAgentBench](https://github.com/snap-stanford/MLAgentBench) (Huang et al., ICML 2024) — a benchmark where an LLM agent is given an ML task (e.g. improve accuracy on a Kaggle dataset) and must autonomously write code, run experiments, read results, and iterate.
+The ResearchAgent (from [MLAgentBench, ICML 2024](https://arxiv.org/abs/2310.03302)) autonomously writes code, runs experiments, reads results, and iterates to improve an ML model. Its built-in Fact Check reduces hallucination but doesn't eliminate it. Our contribution: after each *failed attempt*, the full trajectory is sent to the LLM which writes a structured post-mortem (what was tried, why it failed, what to try next, what to avoid). That post-mortem is prepended to the next attempt's prompt.
 
-### The Problem
-
-Existing agents **hallucinate improvements** — the agent's internal Fact Check claims a score improved, but the actual execution output shows no change. MLAgentBench found that even the best model (Claude Opus) only succeeds on 37.5% of tasks, with hallucination as a primary failure mode.
-
-### Our Contribution
-
-The existing `ResearchAgent` includes per-step reflection (asking "what did I just observe?") but treats each complete run as independent. We introduce **cross-run Reflexion**: after each failed attempt, the full trajectory is analyzed to produce a structured post-mortem (strategies tried, why they failed, what to try next, what to avoid). This post-mortem is prepended to the next attempt's system prompt.
-
-> **Thesis:** Cross-run Reflexion reduces hallucination frequency and improves task success rates without modifying model weights.
+**Thesis:** Cross-run Reflexion reduces hallucination frequency and improves task success rates without modifying model weights.
 
 ---
 
@@ -28,70 +23,51 @@ The existing `ResearchAgent` includes per-step reflection (asking "what did I ju
 
 ### Three Conditions
 
-| Condition | Description | Purpose |
-|-----------|-------------|---------|
-| **A — Baseline** | Original ResearchAgent, 1 attempt, 30 steps | Replicates MLAgentBench paper |
-| **B — Multi-attempt** | ResearchAgent, 3 attempts, no reflection | Controls for "more compute" |
-| **C — Reflexion (ours)** | Our agent, 3 attempts + structured post-mortem | Tests our contribution |
+| Condition | Description | Attempts | Reflection |
+|-----------|-------------|----------|------------|
+| **A — Baseline** | Original ResearchAgent, 1 attempt | 1 | None |
+| **B — Multi-attempt** | ResearchAgent, 3 attempts, no reflection | 3 | None |
+| **C — Reflexion** | Our agent, 3 attempts + post-mortem between each | 3 | Yes |
 
-Condition B is a critical control: if C outperforms B, the improvement is due to Reflexion specifically, not just having more attempts.
+Condition B is a critical control: if C beats B, the gain is from Reflexion specifically — not just having more compute.
 
 ### Tasks
 
-| Task | Domain | Metric |
-|------|--------|--------|
-| `house-price` | Tabular regression | MAE (lower is better) |
-| `spaceship-titanic` | Tabular classification | Accuracy (higher is better) |
-| `vectorization` | Code optimization | Relative speedup |
-| `feedback` | NLP classification | Macro-F1 (higher is better) |
+| Task | Type | Metric | Baseline | Direction |
+|------|------|--------|----------|-----------|
+| `house-price` | Tabular regression | MAE | 30,000 | Lower is better |
+| `spaceship-titanic` | Tabular classification | Accuracy | 0.72 | Higher is better |
+| `vectorization` | Code optimisation | Speedup ratio | 1.0× | Higher is better |
+| `feedback` | NLP classification | Macro-F1 | 0.50 | Higher is better |
 
-### Models
+### Primary Models
 
-| Model | Provider |
-|-------|----------|
-| Claude 3.5 Sonnet | Anthropic API |
-| GPT-4o | OpenAI API |
+| Model ID | Provider | API key env var |
+|----------|----------|-----------------|
+| `claude-sonnet-4-6` | Anthropic | `ANTHROPIC_API_KEY` |
+| `gpt-4o` | OpenAI | `OPENAI_API_KEY` |
 
-### Metrics
-
-| Metric | Definition |
-|--------|-----------|
-| **Success Rate** | % of tasks where final score beats the baseline |
-| **Score Delta** | Absolute improvement over baseline |
-| **Hallucination Count** | Steps where Fact Check claims improvement but execution shows no change |
-| **Attempts to Success** | Which attempt (1, 2, or 3) first beat the baseline |
+Full matrix: 3 conditions × 4 tasks × 2 models = **24 runs**.
 
 ---
 
-## Project Structure
+## Completed Runs
 
-```
-project/
-├── agent/
-│   ├── llm.py              # Modern Claude + GPT-4o wrapper; patches MLAgentBench
-│   ├── prompts.py          # Post-run reflection prompt + context template
-│   ├── base_agent.py       # Single-attempt runner (Conditions A & B)
-│   └── reflexion_agent.py  # Cross-run Reflexion runner (Condition C)
-├── evaluation/
-│   ├── metrics.py          # Success rate, score delta, hallucination count
-│   ├── run_experiment.py   # Run one condition × task × model
-│   └── run_all.py          # Run all 24 combinations
-├── results/                # Output JSONs per run (git-ignored)
-│   ├── A/
-│   ├── B/
-│   └── C/
-├── implementation/
-│   └── MLAgentBench/       # Cloned benchmark (not modified)
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+| Condition | Task | Model | Final Score | Beat Baseline? |
+|-----------|------|-------|-------------|----------------|
+| A | house-price | claude-sonnet-4-6 | 16,679 MAE | ✓ (−44%) |
+| A | house-price | gemini-2.5-flash | 19,919 MAE | ✓ (−34%) |
+| A | vectorization | claude-sonnet-4-6 | 1.256× speedup | ✓ |
+| B | house-price | gemini-2.5-flash | 20,595 MAE | ✓ |
+| C | house-price | gemini-2.5-flash | 16,682 MAE | ✓ (attempt 1) |
+
+Gemini runs were smoke tests. **Primary paper results use `claude-sonnet-4-6` and `gpt-4o`.**
 
 ---
 
 ## Setup
 
-### 1. Clone the repository
+### 1. Clone the repo
 
 ```bash
 git clone <repo-url>
@@ -105,7 +81,7 @@ mkdir -p implementation
 git clone https://github.com/snap-stanford/MLAgentBench implementation/MLAgentBench
 ```
 
-### 3. Create a virtual environment
+### 3. Create the virtual environment
 
 ```bash
 python3 -m venv implementation/venv2
@@ -113,22 +89,29 @@ source implementation/venv2/bin/activate
 pip install -r requirements.txt
 ```
 
-Also install MLAgentBench dependencies:
+Also install MLAgentBench's own dependencies:
 
 ```bash
-pip install dacite tiktoken anthropic openai
+pip install dacite tiktoken
 ```
 
-### 4. Add your API keys
+### 4. Add API keys
 
 ```bash
 cp .env.example .env
-# Edit .env and fill in your keys
+# Open .env and fill in your keys
 ```
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...       # optional, only needed for Gemini runs
+```
+
+### 5. Activate the venv before every session
+
+```bash
+source implementation/venv2/bin/activate
 ```
 
 ---
@@ -138,44 +121,134 @@ OPENAI_API_KEY=sk-...
 ### Run one condition
 
 ```bash
-source implementation/venv2/bin/activate
-
 python evaluation/run_experiment.py \
-  --condition A \
+  --condition C \
   --task house-price \
-  --model claude-3-5-sonnet-20241022 \
-  --steps 30
+  --model claude-sonnet-4-6 \
+  --steps 30 \
+  --attempts 3
 ```
 
-Options:
-- `--condition` : `A`, `B`, or `C`
-- `--task` : `house-price`, `spaceship-titanic`, `vectorization`, `feedback`
-- `--model` : `claude-3-5-sonnet-20241022` or `gpt-4o`
-- `--steps` : max agent steps per attempt (default 30)
-- `--attempts` : max attempts for Conditions B and C (default 3)
+**Options:**
 
-### Run everything
+| Flag | Values | Default |
+|------|--------|---------|
+| `--condition` | `A`, `B`, `C` | required |
+| `--task` | `house-price`, `spaceship-titanic`, `vectorization`, `feedback` | required |
+| `--model` | `claude-sonnet-4-6`, `gpt-4o`, `gemini-2.5-flash` | `claude-sonnet-4-6` |
+| `--steps` | integer | `30` |
+| `--attempts` | integer (B and C only) | `3` |
+
+Results are saved to `results/{condition}/{task}_{model_slug}.json`. **Already-completed runs are skipped automatically** — safe to re-run after interruption.
+
+### Run everything at once
 
 ```bash
 python evaluation/run_all.py --steps 30 --attempts 3
 ```
 
-Use `--dry-run` to see the full plan without executing.  
-Already-completed runs are automatically skipped (safe to resume after interruption).
+Preview without executing:
 
-### Compute metrics on existing results
+```bash
+python evaluation/run_all.py --dry-run
+```
+
+### Compute metrics on a result file
 
 ```python
 from evaluation.metrics import compute_metrics
-m = compute_metrics("results/C/house-price_sonnet35.json")
+m = compute_metrics("results/C/house-price_sonnet46.json")
 print(m)
+# {condition, task, model, success, final_score, baseline_score,
+#  score_delta, hallucination_count, attempts_to_success, n_attempts}
+```
+
+---
+
+## What Still Needs to Be Run (Ammar's Part)
+
+The table below shows what's left for the primary models. Run these in order — cheaper tasks first.
+
+```bash
+# --- Condition A (baseline, 1 attempt each) ---
+python evaluation/run_experiment.py --condition A --task spaceship-titanic --model claude-sonnet-4-6 --steps 30
+python evaluation/run_experiment.py --condition A --task feedback         --model claude-sonnet-4-6 --steps 30
+python evaluation/run_experiment.py --condition A --task house-price      --model gpt-4o            --steps 30
+python evaluation/run_experiment.py --condition A --task spaceship-titanic --model gpt-4o           --steps 30
+python evaluation/run_experiment.py --condition A --task vectorization    --model gpt-4o            --steps 30
+python evaluation/run_experiment.py --condition A --task feedback         --model gpt-4o            --steps 30
+
+# --- Condition B (multi-attempt, no reflection) ---
+python evaluation/run_experiment.py --condition B --task house-price      --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task spaceship-titanic --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task vectorization    --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task feedback         --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task house-price      --model gpt-4o            --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task spaceship-titanic --model gpt-4o           --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task vectorization    --model gpt-4o            --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition B --task feedback         --model gpt-4o            --steps 30 --attempts 3
+
+# --- Condition C (Reflexion — our contribution) ---
+python evaluation/run_experiment.py --condition C --task house-price      --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task spaceship-titanic --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task vectorization    --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task feedback         --model claude-sonnet-4-6 --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task house-price      --model gpt-4o            --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task spaceship-titanic --model gpt-4o           --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task vectorization    --model gpt-4o            --steps 30 --attempts 3
+python evaluation/run_experiment.py --condition C --task feedback         --model gpt-4o            --steps 30 --attempts 3
+```
+
+Each run takes roughly 20–60 minutes depending on task and model. Condition C runs (3 attempts) take up to 3× longer than Condition A.
+
+---
+
+## Project Structure
+
+```
+project/
+├── agent/
+│   ├── llm.py              # Claude / GPT-4o / Gemini wrapper; patches MLAgentBench
+│   ├── prompts.py          # REFLECTION_PROMPT + REFLECTION_CONTEXT_TEMPLATE
+│   ├── ml_knowledge.py     # ML domain knowledge injected into every run
+│   ├── base_agent.py       # Single-attempt runner (Conditions A and B)
+│   └── reflexion_agent.py  # Cross-run Reflexion runner (Condition C)
+│
+├── evaluation/
+│   ├── metrics.py          # compute_metrics(): success, score_delta, hallucination_count
+│   ├── run_experiment.py   # CLI: run one condition × task × model
+│   └── run_all.py          # Run all 24 combinations; prints summary table
+│
+├── implementation/
+│   └── MLAgentBench/       # Cloned from snap-stanford/MLAgentBench (do not modify)
+│
+├── results/                # Output JSONs — gitignored, generated locally
+│   ├── A/
+│   ├── B/
+│   └── C/
+│
+├── logs/                   # Per-run trajectory logs — gitignored
+│
+├── papers/
+│   ├── Beyond ReAct.pdf    # Our submitted Part 1 survey
+│   ├── CourseProject_part1.tex  # LaTeX source
+│   ├── Huang 24y.pdf       # MLAgentBench paper (Huang et al., ICML 2024)
+│   └── benchmark paper.pdf # Reference
+│
+├── dashboard/
+│   ├── server.py           # Local results viewer (Flask)
+│   └── index.html
+│
+├── requirements.txt
+├── .env.example
+└── README.md
 ```
 
 ---
 
 ## How the Reflexion Mechanism Works
 
-After each failed attempt, the full trajectory is sent to the LLM with this prompt structure:
+After each failed attempt the agent's full trajectory is sent to the LLM with this prompt:
 
 ```
 TASK: house-price
@@ -183,7 +256,7 @@ BASELINE SCORE: 30000
 YOUR FINAL SCORE: 31500
 RESULT: Failed
 
-[trajectory...]
+[trajectory of last 50 steps...]
 
 Write a structured post-mortem:
 1. STRATEGIES TRIED
@@ -192,7 +265,26 @@ Write a structured post-mortem:
 4. WHAT TO AVOID
 ```
 
-The LLM's response is prepended to the next attempt's system prompt, giving the agent explicit memory of past failures before it starts.
+The response is saved to `logs/.../reflection_after_attempt_N.txt` and prepended to the next attempt's system prompt. The agent starts each retry with explicit knowledge of past failures.
+
+Prompt injection order per attempt:
+
+```
+[1] ML_KNOWLEDGE_PROMPT       ← anti-hallucination rules + task playbook
+[2] Reflection post-mortem    ← only Condition C, attempt 2+
+[3] MLAgentBench task prompt  ← original ResearchAgent task description
+```
+
+---
+
+## Metrics
+
+| Metric | Definition |
+|--------|-----------|
+| `success` | Final score beats the task baseline |
+| `score_delta` | Absolute improvement over baseline (positive = better) |
+| `hallucination_count` | Steps where Fact Check claims confirmed improvement but observation shows error/traceback |
+| `attempts_to_success` | Which attempt (1/2/3) first beat the baseline; `null` if never |
 
 ---
 
@@ -201,5 +293,3 @@ The LLM's response is prepended to the next attempt's system prompt, giving the 
 1. Q. Huang et al., "MLAgentBench: Evaluating Language Agents on Machine Learning Experimentation," ICML 2024.
 2. N. Shinn et al., "Reflexion: Language Agents with Verbal Reinforcement Learning," NeurIPS 2023.
 3. S. Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models," ICLR 2023.
-4. J. Wang et al., "GTA: A Benchmark for General Tool Agents," NeurIPS 2024.
-5. Z. Chen et al., "Agent-FLAN: Designing Data and Methods for Effective Agent Tuning," ACL Findings 2024.

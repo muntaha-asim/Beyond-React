@@ -24,6 +24,7 @@ for p in (_PROJECT, _MLAB):
 
 from agent.base_agent import run_single_attempt
 from agent.reflexion_agent import run_reflexion
+from evaluation.metrics import is_success, BASELINE_SCORES
 
 RESULTS_DIR = os.path.join(_PROJECT, "results")
 LOGS_DIR = os.path.join(_PROJECT, "logs")
@@ -86,6 +87,7 @@ def run_experiment(
 
     elif condition == "B":
         attempts = []
+        attempts_to_success = None
         for i in range(max_attempts):
             att = run_single_attempt(
                 task=task, model=model, attempt_idx=i,
@@ -93,13 +95,16 @@ def run_experiment(
                 agent_max_steps=agent_max_steps,
             )
             attempts.append(att)
+            if is_success(task, att["final_score"], BASELINE_SCORES.get(task)):
+                attempts_to_success = i + 1
+                break
         output = {
             "condition": "B",
             "task": task,
             "model": model,
             "attempts": attempts,
             "final_score": attempts[-1]["final_score"],
-            "attempts_to_success": None,
+            "attempts_to_success": attempts_to_success,
         }
 
     elif condition == "C":

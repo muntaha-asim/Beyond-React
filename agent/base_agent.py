@@ -79,8 +79,8 @@ def run_single_attempt(
         actions_add_to_prompt=[],
         retrieval=False,
         valid_format_entires=None,
-        max_steps_in_context=1,
-        max_observation_steps_in_context=1,
+        max_steps_in_context=3,
+        max_observation_steps_in_context=3,
         max_retries=3,
         langchain_agent="zero-shot-react-description",
     )

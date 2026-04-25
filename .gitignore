@@ -1,6 +1,10 @@
 # API keys — never commit
 .env
 
+# Claude Code internals — not part of the project
+.claude/
+memory/
+
 # Python
 __pycache__/
 *.py[cod]

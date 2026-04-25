@@ -12,7 +12,7 @@ from typing import Optional
 BASELINE_SCORES = {
     "house-price":       30000,
     "spaceship-titanic": 0.72,
-    "vectorization":     None,
+    "vectorization":     1.0,   # speedup > 1.0× beats the reference implementation
     "feedback":          0.50,
 }
 
@@ -36,35 +36,31 @@ def score_delta(task: str, score: Optional[float], baseline: Optional[float]) ->
 
 def count_hallucinations(history_steps: list) -> int:
     """
-    Count steps where Fact Check claims a performance improvement was
-    "directly confirmed" but the next Execute Script observation shows
-    no real improvement (error, unchanged output, or no numeric gain).
+    Count steps where the agent's Fact Check claims a confirmed improvement
+    but the same step's observation contradicts it (error, traceback, or
+    empty output).
 
-    This is a heuristic — we look for:
-      - prev step Fact Check: claims improvement as "directly confirmed"
-      - current step Action: Execute Script
-      - current step Observation: contains error / traceback / no score change
+    Fact Check and observation live in the same step dict — the LLM writes
+    the Fact Check after seeing the observation, so mismatches are hallucinations.
     """
     hallucinations = 0
 
-    for i, step in enumerate(history_steps):
+    for step in history_steps:
         action = step.get("action", {})
         act_name = str(action.get("Action", "")).strip().lower()
-        observation = str(step.get("observation", "")).lower()
 
         if "execute script" not in act_name:
             continue
 
-        if i == 0:
-            continue
-
-        prev_fact_check = str(
-            history_steps[i - 1].get("action", {}).get("Fact Check", "")
-        ).lower()
+        fact_check = str(action.get("Fact Check", "")).lower()
+        observation = str(step.get("observation", "")).lower()
 
         claimed_improvement = (
-            "directly confirmed" in prev_fact_check
-            and any(w in prev_fact_check for w in ("improved", "better", "increased", "decreased", "higher", "lower"))
+            "confirmed" in fact_check
+            and any(w in fact_check for w in (
+                "improved", "better", "increased", "decreased",
+                "higher", "lower", "reduced", "gain", "score",
+            ))
         )
 
         if not claimed_improvement:
@@ -73,8 +69,8 @@ def count_hallucinations(history_steps: list) -> int:
         no_actual_improvement = (
             "error" in observation
             or "traceback" in observation
+            or "exception" in observation
             or observation.strip() == ""
-            or "no improvement" in observation
         )
 
         if no_actual_improvement:

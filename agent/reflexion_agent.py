@@ -19,7 +19,7 @@ from agent.prompts import REFLECTION_PROMPT, REFLECTION_CONTEXT_TEMPLATE
 BASELINE_SCORES = {
     "house-price":       30000,   # MAE in dollars
     "spaceship-titanic": 0.72,    # accuracy
-    "vectorization":     None,    # measured as relative speedup — handled separately
+    "vectorization":     1.0,     # speedup > 1.0× beats the reference implementation
     "feedback":          0.50,    # macro-F1
 }
 
@@ -147,7 +147,7 @@ def _generate_post_mortem(
     return post_mortem
 
 
-def _format_trajectory(history_steps: list, max_steps: int = 20) -> str:
+def _format_trajectory(history_steps: list, max_steps: int = 50) -> str:
     """
     Produce a compact text summary of the trajectory.
     Only the last max_steps are included to stay within token limits.
