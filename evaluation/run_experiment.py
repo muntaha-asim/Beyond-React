@@ -130,7 +130,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run one experiment condition")
     parser.add_argument("--condition", required=True, choices=["A", "B", "C"])
     parser.add_argument("--task", required=True, choices=VALID_TASKS)
-    parser.add_argument("--model", default="claude-3-5-sonnet-20241022",
+    parser.add_argument("--model", default="claude-sonnet-4-6",
                         help="LLM model ID")
     parser.add_argument("--steps", type=int, default=30,
                         help="Max agent steps per attempt")
