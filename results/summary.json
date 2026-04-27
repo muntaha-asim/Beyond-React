@@ -1,0 +1,26 @@
+[
+  {
+    "condition": "A",
+    "task": "house-price",
+    "model": "claude-sonnet-4-6",
+    "success": true,
+    "final_score": 16679.081394054992,
+    "baseline_score": 30000,
+    "score_delta": 13320.918605945008,
+    "hallucination_count": 0,
+    "attempts_to_success": 1,
+    "n_attempts": 1
+  },
+  {
+    "condition": "A",
+    "task": "vectorization",
+    "model": "claude-sonnet-4-6",
+    "success": false,
+    "final_score": 1.25600004196167,
+    "baseline_score": null,
+    "score_delta": null,
+    "hallucination_count": 0,
+    "attempts_to_success": null,
+    "n_attempts": 1
+  }
+]

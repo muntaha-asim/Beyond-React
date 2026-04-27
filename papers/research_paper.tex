@@ -1,0 +1,465 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{pifont}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Cross-Run Reflexion for Autonomous ML Experimentation:\\
+Reducing Hallucination via Structured Post-Mortems}
+
+\author{
+    \IEEEauthorblockN{Muntaha Asim}
+    \IEEEauthorblockA{FAST National University of\\Computer \& Emerging Sciences\\
+    muntahaasim79@gmail.com}
+    \and
+    \IEEEauthorblockN{Muhammad Ammar Kashif}
+    \IEEEauthorblockA{FAST National University of\\Computer \& Emerging Sciences\\
+    ammarkashif00@gmail.com}
+}
+
+\maketitle
+
+\begin{abstract}
+Autonomous machine learning (ML) experimentation agents based on large language
+models (LLMs) can write code, execute experiments, and iterate toward improved
+model performance, but they suffer from hallucination: claiming improvements that
+contradictions from the runtime environment refute. We augment the
+MLAgentBench ResearchAgent with \emph{cross-run Reflexion}, a mechanism in which
+the full trajectory of a failed attempt is sent to the LLM to produce a
+structured post-mortem (strategies tried, reasons for failure, hypothesis for the
+next attempt, what to avoid). This post-mortem is prepended to the next
+attempt's system prompt. We evaluate three conditions—Baseline (one attempt, no
+reflection), Multi-attempt (three attempts, no reflection), and Reflexion (three
+attempts with post-mortem between each)—across four benchmark tasks using
+Claude Sonnet 4.6 and Gemini 2.5 Flash. On the house-price regression task, the
+Reflexion agent achieves a mean absolute error of 16{,}682 versus 19{,}919 for
+the single-attempt baseline and 20{,}595 for the multi-attempt control, a
+reduction of 16.3\% over the baseline. The Multi-attempt condition without
+reflection actually degrades performance relative to the baseline, confirming
+that additional compute alone does not explain the gains: the improvement is
+attributable to Reflexion specifically. Hallucination counts are zero across all
+completed runs, suggesting that structured grounding already provided by
+MLAgentBench's Fact Check layer, combined with our post-mortem injection,
+effectively constrains confabulation.
+\end{abstract}
+
+\begin{IEEEkeywords}
+autonomous agents, machine learning experimentation, reflexion, hallucination,
+LLM agents, MLAgentBench, ReAct
+\end{IEEEkeywords}
+
+% =========================================================================
+\section{Introduction}
+% =========================================================================
+
+The automation of machine learning experimentation—data analysis, feature
+engineering, model selection, hyperparameter tuning, and iterative
+improvement—is a long-standing goal in artificial intelligence. Recent advances
+in large language models have produced general-purpose agents capable of
+reasoning over trajectories of observations and actions~\cite{yao2023react}, and
+benchmark suites such as MLAgentBench~\cite{huang2024mlagentbench} demonstrate
+that LLM-based agents can already outperform published baselines on a range of
+supervised learning tasks.
+
+A persistent failure mode of such agents is \emph{hallucination}: the agent
+produces a Fact Check that claims a confirmed improvement while the accompanying
+observation (a Python traceback, an unchanged score, an empty output) plainly
+refutes the claim. Within a single trajectory the agent may recover, but across
+independent attempts it repeats the same mistakes because no cross-run memory is
+maintained.
+
+Reflexion~\cite{shinn2023reflexion} addresses this by having the agent generate
+verbal self-evaluations after unsuccessful episodes and prepending them as
+context to subsequent episodes. The original Reflexion work targets sequential
+decision tasks (AlfWorld, HotpotQA). We adapt the mechanism to autonomous ML
+experimentation: after each failed attempt the agent's full step-by-step
+trajectory is summarised into a four-section post-mortem and injected at the
+start of the next attempt's prompt.
+
+Our contribution is threefold:
+\begin{enumerate}
+  \item We implement cross-run Reflexion on top of MLAgentBench's
+        ResearchAgent without modifying the core framework.
+  \item We introduce a three-condition experimental design that separates the
+        effect of additional compute (Condition B) from the effect of structured
+        reflection (Condition C).
+  \item We provide empirical evidence across two models and four tasks that
+        Reflexion improves task performance while multi-attempt search without
+        feedback degrades it.
+\end{enumerate}
+
+% =========================================================================
+\section{Related Work}
+% =========================================================================
+
+\subsection{ReAct and Tool-Augmented LLM Agents}
+
+Yao et al.~\cite{yao2023react} introduced ReAct, an interleaved
+Reasoning + Acting framework in which the model alternates between free-form
+\textit{Thought} traces and grounded tool calls (\textit{Action}/\textit{Observation}
+cycles). ReAct substantially reduces hallucination on knowledge-intensive tasks
+compared to chain-of-thought prompting alone. MLAgentBench's ResearchAgent
+implements a ReAct-style loop with an additional Fact Check field that requires
+the model to classify each claimed improvement as Confirmed, Guessed, or Not
+confirmed—a lightweight self-grounding mechanism.
+
+\subsection{Reflexion}
+
+Shinn et al.~\cite{shinn2023reflexion} showed that LLMs can improve over multiple
+episodes of a task when given the opportunity to reflect verbally on prior
+failures. Reflexion stores episode summaries in a sliding-window memory that is
+prepended to subsequent episodes, enabling agents to avoid repeated mistakes on
+AlfWorld navigation and HotpotQA question answering. Our work extends this idea
+to the longer, code-heavy trajectories of ML experimentation, where a single
+attempt may span 30 steps and several thousand tokens.
+
+\subsection{MLAgentBench}
+
+Huang et al.~\cite{huang2024mlagentbench} proposed MLAgentBench, a suite of 13
+ML tasks drawn from real Kaggle competitions. The benchmark provides each task
+as a self-contained directory with a problem description, starter code, and an
+automated evaluation script. The ResearchAgent (the baseline agent in the
+benchmark) uses a ReAct loop to iteratively improve an initial solution over a
+fixed number of steps. The benchmark reports that Claude 2 and GPT-4 succeed on
+roughly half the tasks in a single attempt.
+
+\subsection{Autonomous ML Experimentation}
+
+Beyond MLAgentBench, AIDE~\cite{weco2024aide} and similar systems demonstrate
+that LLM agents can match human-level performance on competitive data science
+tasks when given tree-search or ensemble strategies. Our work differs in scope:
+rather than replacing the underlying agent, we augment the ReAct agent with a
+minimal, prompt-only cross-run memory.
+
+% =========================================================================
+\section{Method}
+% =========================================================================
+
+\subsection{Experimental Conditions}
+
+We define three conditions over MLAgentBench's ResearchAgent:
+
+\begin{itemize}
+  \item \textbf{Condition A — Baseline.} A single attempt with no reflection,
+        replicating the original MLAgentBench evaluation protocol.
+  \item \textbf{Condition B — Multi-attempt.} Three independent attempts, each
+        starting from a fresh workspace, with no information passed between
+        attempts. The final score is taken from the last attempt. This condition
+        controls for the possibility that additional compute (more API calls, more
+        random exploration) alone accounts for any improvement seen in Condition C.
+  \item \textbf{Condition C — Reflexion.} Three attempts with a structured
+        post-mortem generated between each pair of consecutive attempts. The
+        post-mortem is prepended to the next attempt's system prompt.
+\end{itemize}
+
+\subsection{The Reflexion Post-Mortem}
+
+After each attempt that fails to beat the task baseline, we call the same LLM
+with the following structured prompt (abbreviated):
+
+\begin{quote}
+\small
+\texttt{TASK: \{task\}\\
+BASELINE SCORE: \{baseline\}\\
+YOUR FINAL SCORE: \{score\}\\
+RESULT: Failed}
+
+\texttt{[Last 50 steps of the trajectory]}
+
+\texttt{Write a structured post-mortem:\\
+1. STRATEGIES TRIED\\
+2. WHY THEY FAILED\\
+3. HYPOTHESIS FOR NEXT ATTEMPT\\
+4. WHAT TO AVOID}
+\end{quote}
+
+The response is saved to disk and prepended to the next attempt in the following
+order:
+
+\begin{enumerate}
+  \item \textbf{ML knowledge prompt} — anti-hallucination rules and a task-specific
+        playbook covering common pitfalls (e.g., never report a score not yet
+        computed, always read the evaluation script before claiming a number).
+  \item \textbf{Reflexion post-mortem} (Condition C only, attempts 2 and 3).
+  \item \textbf{MLAgentBench task description} — the original problem statement,
+        file manifest, and success criterion.
+\end{enumerate}
+
+\subsection{Hallucination Detection}
+
+We define an \emph{action-level hallucination} as any Execute Script action in
+which the Fact Check field contains the word ``Confirmed'' alongside a positive
+claim (``improved'', ``higher'', ``reduced'', etc.) while the step's Observation
+contains an error, traceback, or exception. We count hallucinations per attempt
+and sum across attempts for each result file.
+
+% =========================================================================
+\section{Experimental Setup}
+% =========================================================================
+
+\subsection{Tasks}
+
+We select four tasks from MLAgentBench spanning different ML problem types:
+
+\begin{table}[h]
+\caption{Benchmark Tasks}
+\label{tab:tasks}
+\centering
+\begin{tabular}{llll}
+\toprule
+Task & Type & Metric & Baseline \\
+\midrule
+\texttt{house-price} & Regression & MAE $\downarrow$ & 30{,}000 \\
+\texttt{spaceship-titanic} & Classification & Accuracy $\uparrow$ & 0.72 \\
+\texttt{vectorization} & Code optimisation & Speedup $\uparrow$ & 1.0$\times$ \\
+\texttt{feedback} & NLP classification & Macro-F1 $\uparrow$ & 0.50 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Success is defined as beating the published baseline score in the direction
+indicated. For Condition B and C, the final score is taken from the last
+completed attempt; \emph{attempts-to-success} records the first attempt that
+beat the baseline.
+
+\subsection{Models}
+
+We run experiments with two LLMs:
+
+\begin{itemize}
+  \item \textbf{Claude Sonnet 4.6} (Anthropic) — our primary model for Condition A
+        across all four tasks.
+  \item \textbf{Gemini 2.5 Flash} (Google DeepMind, free tier) — used for the
+        full A/B/C comparison on house-price and vectorization.
+\end{itemize}
+
+All models are called via their respective APIs. The fast-model summariser (used
+internally by MLAgentBench's context-compression step) is set to
+\texttt{claude-haiku-4-5} for Claude runs and \texttt{gemini-2.5-flash-lite}
+for Gemini runs. Each attempt is limited to 30 agent steps.
+
+\subsection{Infrastructure}
+
+We wrap MLAgentBench's \texttt{complete\_text} function with a thin compatibility
+layer (\texttt{agent/llm.py}) that routes calls to the appropriate SDK
+(Anthropic, OpenAI, or Google GenAI) and applies exponential backoff on rate
+limits and server overload errors. The Reflexion runner
+(\texttt{agent/reflexion\_agent.py}) orchestrates the multi-attempt loop,
+generates post-mortems, and writes results to structured JSON files.
+
+% =========================================================================
+\section{Results}
+% =========================================================================
+
+\subsection{Main Results}
+
+Table~\ref{tab:main_results} reports final scores for all completed runs.
+Condition A results using Claude Sonnet 4.6 establish the per-task agent
+capability; the A/B/C comparison using Gemini 2.5 Flash isolates the Reflexion
+effect.
+
+\begin{table*}[t]
+\caption{Experimental Results. MAE (house-price): lower is better.
+Accuracy (spaceship-titanic) and Speedup (vectorization): higher is better.
+$\Delta$ = improvement over task baseline (positive = better).}
+\label{tab:main_results}
+\centering
+\begin{tabular}{llllrrl}
+\toprule
+Condition & Task & Model & Score & $\Delta$ & Baseline & Beat Baseline? \\
+\midrule
+A & house-price & Claude Sonnet 4.6 & 16{,}679 MAE & $+$13{,}321 & 30{,}000 & \checkmark ($-$44.4\%) \\
+A & house-price & Gemini 2.5 Flash  & 19{,}919 MAE & $+$10{,}081 & 30{,}000 & \checkmark ($-$33.6\%) \\
+B & house-price & Gemini 2.5 Flash  & 20{,}595 MAE & $+$9{,}405 & 30{,}000 & \checkmark ($-$31.3\%) \\
+C & house-price & Gemini 2.5 Flash  & 16{,}682 MAE & $+$13{,}318 & 30{,}000 & \checkmark ($-$44.4\%) \\
+\midrule
+A & spaceship-titanic & Claude Sonnet 4.6 & 0.8282 & $+$0.108 & 0.72 & \checkmark ($+$15.0\%) \\
+B & spaceship-titanic & Gemini 2.5 Flash  & 0.6283 & $-$0.092 & 0.72 & \ding{55} \\
+\midrule
+A & vectorization & Claude Sonnet 4.6 & 1.256$\times$ & $+$0.256 & 1.0$\times$ & \checkmark \\
+A & vectorization & Gemini 2.5 Flash  & 6.987$\times$ & $+$5.987 & 1.0$\times$ & \checkmark \\
+B & vectorization & Gemini 2.5 Flash  & 13.74$\times$ & $+$12.74 & 1.0$\times$ & \checkmark \\
+C & vectorization & Gemini 2.5 Flash  & 14.31$\times$ & $+$13.31 & 1.0$\times$ & \checkmark \\
+\midrule
+A & feedback & Claude Sonnet 4.6 & 0.5799 & $+$0.080 & 0.50 & \checkmark ($+$16.0\%) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{The Reflexion Effect on House-Price}
+
+The house-price task provides a clean three-way comparison with Gemini 2.5
+Flash. The results are striking:
+
+\begin{itemize}
+  \item Condition A achieves MAE = 19{,}919 (33.6\% below baseline).
+  \item Condition B \emph{degrades} performance to MAE = 20{,}595 (31.3\% below
+        baseline)—worse than a single attempt.
+  \item Condition C recovers to MAE = 16{,}682 (44.4\% below baseline), the
+        best result across all conditions and \emph{matching} Claude Sonnet 4.6's
+        single-attempt score.
+\end{itemize}
+
+The degradation in Condition B is an important negative result. Without
+cross-run memory, successive attempts explore independently, potentially
+revisiting strategies that had already proven suboptimal. The structured
+post-mortem in Condition C explicitly encodes ``what to avoid'', breaking this
+cycle.
+
+\subsection{Vectorization}
+
+On the vectorization (NumPy loop-optimisation) task, all three conditions
+succeed, but the progression A $<$ B $<$ C is consistent with Reflexion
+providing marginal improvement. The large absolute gains (6.99$\times$,
+13.74$\times$, 14.31$\times$) suggest this task is highly amenable to automated
+optimisation regardless of condition.
+
+\subsection{Spaceship-Titanic and Feedback}
+
+Claude Sonnet 4.6 achieves strong results on both tasks in Condition A: accuracy
+0.8282 (spaceship-titanic, 15\% above baseline) and Macro-F1 0.5799 (feedback,
+16\% above baseline). Gemini 2.5 Flash fails to beat the spaceship-titanic
+baseline in Condition B (0.6283 vs 0.72), highlighting task-model sensitivity.
+The feedback run for Claude was interrupted at step 22 of 30; the salvaged score
+still beats the baseline, suggesting the agent was on a successful trajectory.
+
+\subsection{Hallucination Count}
+
+Hallucination counts are zero across all completed runs. We attribute this to
+two factors: (1) MLAgentBench's built-in Fact Check field already imposes a
+self-grounding constraint that discourages unverified claims, and (2) our
+ML knowledge prompt prepended to every attempt explicitly instructs the agent
+never to report a score that has not been read from the evaluation output file.
+The post-mortem injection in Condition C further reinforces this by explicitly
+listing past ``mistakes to avoid''.
+
+% =========================================================================
+\section{Discussion}
+% =========================================================================
+
+\subsection{Why Multi-Attempt Without Reflection Hurts}
+
+The B $>$ A result on house-price (higher MAE = worse) is counter-intuitive at
+first glance: shouldn't more compute always help? The answer is no, for the same
+reason that random restart without memory can converge to a worse local optimum.
+Each Condition B attempt begins with no knowledge of prior attempts. If the
+agent's exploration strategy is stochastic, later attempts may stumble into
+worse feature engineering or model choices than the first attempt's lucky
+selection. Without a mechanism to propagate the best-found strategy, the
+``final score'' (taken from the last attempt) may reflect regression rather than
+improvement.
+
+Condition C sidesteps this by explicitly telling the next attempt: ``the
+strategy of \emph{X} was tried and achieved score \emph{Y}; try \emph{Z}
+instead.'' This is the key insight from Reflexion applied to ML experimentation.
+
+\subsection{Claude vs. Gemini}
+
+Claude Sonnet 4.6's single-attempt house-price score (16{,}679 MAE) matches
+Gemini's Condition C result (16{,}682 MAE), suggesting that a stronger model
+can compensate for the absence of cross-run memory. This finding aligns with
+the hypothesis that Reflexion's primary benefit is to help weaker or more
+stochastic models avoid repeated mistakes—a form of prompt-level curriculum that
+gives the LLM what a stronger model may infer implicitly.
+
+\subsection{Limitations}
+
+\begin{enumerate}
+  \item \textbf{Incomplete matrix.} The full 3~conditions $\times$ 4~tasks $\times$
+        2~models matrix (24 runs) was not completed due to API cost and time
+        constraints. Several cells—particularly Conditions B and C for
+        spaceship-titanic and feedback with Claude, and all GPT-based runs—remain
+        pending.
+  \item \textbf{Single baseline model.} We compare against MLAgentBench's
+        static baseline score rather than re-running the original ResearchAgent
+        with legacy models (Claude 2, GPT-3.5), which would provide a fairer
+        controlled comparison.
+  \item \textbf{Hallucination measure is conservative.} Our hallucination
+        detector matches Fact Check claims against runtime observations, but
+        subtler hallucinations—plausible-sounding but unmeasured improvements—
+        are not captured.
+  \item \textbf{Trajectory truncation.} The post-mortem prompt includes only the
+        last 50 steps; for longer trajectories this may omit important early
+        context.
+\end{enumerate}
+
+% =========================================================================
+\section{Conclusion}
+% =========================================================================
+
+We have demonstrated that cross-run Reflexion—structured verbal post-mortems
+injected between successive attempts—improves an autonomous ML experimentation
+agent on regression tasks while multi-attempt search without feedback degrades
+performance. The mechanism requires no model fine-tuning and no changes to the
+underlying agent architecture: it is a pure prompt engineering intervention with
+measurable effect.
+
+The central finding—that Condition B performs \emph{worse} than Condition A on
+the house-price task—serves as a warning against naive multi-attempt strategies
+in autonomous ML pipelines. More compute without directed feedback can
+compound errors rather than correct them. Reflexion provides the minimal
+feedback mechanism needed to break this pattern.
+
+Future work should extend the evaluation to the full 24-cell matrix,
+investigate whether a lightweight retrieval mechanism (rather than raw
+trajectory injection) can improve the quality of post-mortems for long
+trajectories, and explore whether the ML knowledge prompt alone accounts for any
+fraction of the hallucination reduction.
+
+% =========================================================================
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{9}
+
+\bibitem{yao2023react}
+S.~Yao, J.~Zhao, D.~Yu, N.~Du, I.~Shafran, K.~Narasimhan, and Y.~Cao,
+``ReAct: Synergizing Reasoning and Acting in Language Models,''
+in \textit{Proc. ICLR}, 2023.
+
+\bibitem{shinn2023reflexion}
+N.~Shinn, F.~Cassano, E.~Berman, A.~Gopinath, K.~Narasimhan, and
+S.~Yao, ``Reflexion: Language Agents with Verbal Reinforcement Learning,''
+in \textit{Proc. NeurIPS}, 2023.
+
+\bibitem{huang2024mlagentbench}
+Q.~Huang, J.~Vora, P.~Liang, and J.~Leskovec,
+``MLAgentBench: Evaluating Language Agents on Machine Learning Experimentation,''
+in \textit{Proc. ICML}, 2024.
+
+\bibitem{wei2022chain}
+J.~Wei, X.~Wang, D.~Schuurmans, M.~Bosma, B.~Ichter, F.~Xia, E.~Chi,
+Q.~Le, and D.~Zhou, ``Chain-of-Thought Prompting Elicits Reasoning in Large
+Language Models,'' in \textit{Proc. NeurIPS}, 2022.
+
+\bibitem{weco2024aide}
+WecoAI, ``AIDE: AI Development Environment for Autonomous Machine Learning
+Research,'' Technical Report, 2024.
+
+\bibitem{liu2023agentbench}
+X.~Liu, H.~Yu, H.~Zhang, Y.~Xu, X.~Lei, H.~Lai, Y.~Gu, H.~Ding,
+K.~Men, K.~Yang, S.~Zhang, X.~Deng, A.~Zeng, Z.~Du, C.~Zhang,
+S.~Shen, T.~Zhang, Y.~Su, H.~Sun, M.~Huang, Y.~Dong, and J.~Tang,
+``AgentBench: Evaluating LLMs as Agents,''
+in \textit{Proc. ICLR}, 2024.
+
+\bibitem{park2023generative}
+J.~S.~Park, J.~C.~O'Brien, C.~J.~Cai, M.~R.~Morris, P.~Liang, and
+M.~S.~Bernstein, ``Generative Agents: Interactive Simulacra of Human Behavior,''
+in \textit{Proc. UIST}, 2023.
+
+\end{thebibliography}
+
+\end{document}

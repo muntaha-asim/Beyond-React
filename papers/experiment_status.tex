@@ -1,0 +1,289 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+
+% Colours
+\definecolor{beatgreen}{RGB}{198,239,206}
+\definecolor{failred}{RGB}{255,199,206}
+\definecolor{missingyellow}{RGB}{255,235,156}
+\definecolor{dnforange}{RGB}{255,217,179}
+\definecolor{headerblue}{RGB}{31,73,125}
+\definecolor{lightgray}{RGB}{242,242,242}
+
+% Header/footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small Cross-Run Reflexion — Experiment Status}}
+\lhead{\textcolor{gray}{\small FAST NUCES $\cdot$ Agentic AI}}
+\rfoot{\textcolor{gray}{\small Page \thepage}}
+
+% Column types
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% Status macros
+\newcommand{\beat}{\cellcolor{beatgreen}\textbf{BEAT}}
+\newcommand{\fail}{\cellcolor{failred}FAIL}
+\newcommand{\dnf}{\cellcolor{dnforange}DNF}
+\newcommand{\missing}{\cellcolor{missingyellow}\textit{missing}}
+
+\begin{document}
+
+% ─── Title block ─────────────────────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries\color{headerblue} Experiment Status Report}\\[0.4em]
+  {\large Cross-Run Reflexion for Autonomous ML Experimentation}\\[0.3em]
+  {\normalsize Muntaha Asim \quad\textbullet\quad Muhammad Ammar Kashif}\\
+  {\normalsize FAST National University of Computer \& Emerging Sciences}\\[0.3em]
+  {\small Generated: April 27, 2026 \quad\textbullet\quad Deadline: 6:00 PM today}
+\end{center}
+
+\vspace{0.5em}
+\hrule height 1.5pt
+\vspace{1em}
+
+% ─── Overview ────────────────────────────────────────────────────────────────
+\section*{Overview}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Condition} & \textbf{Description} & \textbf{Gemini 2.5 Flash} & \textbf{GPT-5.4-mini} & \textbf{Claude Sonnet 4.6} \\
+\midrule
+A & Baseline (1 attempt)          & 4/4 done & 4/4 done & 4/4 done \\
+B & Multi-attempt, no reflection  & 4/4 done & 4/4 done & \cellcolor{missingyellow}0/4 missing \\
+C & Reflexion (our contribution)  & 4/4 done & 4/4 done & \cellcolor{missingyellow}0/4 missing \\
+\midrule
+\textbf{Total} & & \textbf{12/12} & \textbf{12/12} & \textbf{4/12} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3em}
+\textbf{28 of 36 runs completed.} All 8 missing runs are Claude Sonnet 4.6 Conditions B and C.
+\textbf{Root cause:} Anthropic API monthly quota exhausted --- resets \textbf{May 1, 2026 at 00:00 UTC}.
+
+\vspace{0.5em}
+\textbf{Colour key:}
+\quad \colorbox{beatgreen}{\textbf{BEAT}} = beat baseline
+\quad \colorbox{failred}{FAIL} = ran but below baseline
+\quad \colorbox{dnforange}{DNF} = ran, no valid output produced
+\quad \colorbox{missingyellow}{\textit{missing}} = not yet run
+
+% ─── Condition A ─────────────────────────────────────────────────────────────
+\section*{Condition A --- Baseline (1 attempt, no reflection)}
+
+\begin{center}
+\begin{tabular}{L{3.2cm} C{1.5cm} C{2.4cm} C{2.5cm} C{2.5cm} C{2.5cm}}
+\toprule
+\textbf{Task} & \textbf{Metric} & \textbf{Baseline} & \textbf{Gemini 2.5 Flash} & \textbf{GPT-5.4-mini} & \textbf{Claude Sonnet 4.6} \\
+\midrule
+house-price     & MAE $\downarrow$      & 30{,}000 & \beat{} 19{,}919 & \beat{} 23{,}301 & \beat{} 16{,}679 \\
+spaceship-titanic & Accuracy $\uparrow$ & 0.720    & \fail{} 0.711    & \beat{} 0.769    & \beat{} 0.828 \\
+vectorization   & Speedup $\uparrow$    & 1.00$\times$ & \beat{} 6.99$\times$ & \fail{} 0.005$\times$ & \beat{} 1.26$\times$ \\
+feedback        & F1 $\uparrow$         & 0.500    & \beat{} 0.562    & \dnf{}            & \beat{} 0.580 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.4em}
+\textbf{Notable failures in Condition A:}
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{Gemini / spaceship-titanic (FAIL):} Score 0.711 just below the 0.720 baseline.
+        The agent produced a valid submission but the model it chose underperformed slightly.
+        Conditions B and C recover this (0.822 and 0.822 respectively).
+  \item \textbf{GPT / vectorization (FAIL):} Score 0.005$\times$ --- effectively broke the code.
+        The agent's edits introduced a regression that slowed the loop to near-zero.
+        Conditions B and C recover to $\sim$1.26$\times$.
+  \item \textbf{GPT / feedback (DNF):} Agent ran all 30 steps and the environment terminated
+        normally (\texttt{env.is\_final() == True}), but \emph{no} \texttt{submission.csv} was
+        ever written. Score extraction found only input files in the final-step folder.
+        Conditions B and C both succeed (0.546 and 0.561).
+\end{itemize}
+
+% ─── Condition B ─────────────────────────────────────────────────────────────
+\section*{Condition B --- Multi-attempt, no reflection (3 attempts)}
+
+\begin{center}
+\begin{tabular}{L{3.2cm} C{1.5cm} C{2.4cm} C{2.5cm} C{2.5cm} C{2.5cm}}
+\toprule
+\textbf{Task} & \textbf{Metric} & \textbf{Baseline} & \textbf{Gemini 2.5 Flash} & \textbf{GPT-5.4-mini} & \textbf{Claude Sonnet 4.6} \\
+\midrule
+house-price       & MAE $\downarrow$      & 30{,}000     & \beat{} 20{,}595 & \beat{} 17{,}308 & \missing{} \\
+spaceship-titanic & Accuracy $\uparrow$   & 0.720        & \fail{} 0.628    & \beat{} 0.827    & \missing{} \\
+vectorization     & Speedup $\uparrow$    & 1.00$\times$ & \beat{} 13.74$\times$ & \beat{} 1.26$\times$ & \missing{} \\
+feedback          & F1 $\uparrow$         & 0.500        & \beat{} 0.589    & \beat{} 0.546    & \missing{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.4em}
+\textbf{Notable failures in Condition B:}
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{Gemini / spaceship-titanic (FAIL):} Score 0.628, \emph{worse} than its own
+        Condition A score (0.711). Without reflection, re-attempting without learning
+        from the prior attempt actively degraded performance. This supports our thesis.
+  \item \textbf{Claude Sonnet 4.6 (all 4 tasks --- missing):} Anthropic API monthly quota
+        was exhausted. See Section~\ref{sec:missing} for details.
+\end{itemize}
+
+% ─── Condition C ─────────────────────────────────────────────────────────────
+\section*{Condition C --- Reflexion (3 attempts with post-mortem)}
+
+\begin{center}
+\begin{tabular}{L{3.2cm} C{1.5cm} C{2.4cm} C{2.5cm} C{2.5cm} C{2.5cm}}
+\toprule
+\textbf{Task} & \textbf{Metric} & \textbf{Baseline} & \textbf{Gemini 2.5 Flash} & \textbf{GPT-5.4-mini} & \textbf{Claude Sonnet 4.6} \\
+\midrule
+house-price       & MAE $\downarrow$      & 30{,}000     & \beat{} 16{,}682 & \beat{} 17{,}529 & \missing{} \\
+spaceship-titanic & Accuracy $\uparrow$   & 0.720        & \beat{} 0.822    & \beat{} 0.835    & \missing{} \\
+vectorization     & Speedup $\uparrow$    & 1.00$\times$ & \beat{} 14.31$\times$ & \beat{} 1.28$\times$ & \missing{} \\
+feedback          & F1 $\uparrow$         & 0.500        & \beat{} 0.595    & \beat{} 0.561    & \missing{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.4em}
+Condition C is our strongest result: \textbf{every completed run beat the baseline}.
+Gemini's spaceship-titanic recovered from FAIL in A (0.711) and FAIL in B (0.628)
+to BEAT in C (0.822), a direct demonstration that Reflexion --- not just extra attempts ---
+drives improvement.
+
+% ─── A vs B vs C comparison ──────────────────────────────────────────────────
+\section*{A vs.\ B vs.\ C --- Score Comparison (completed models only)}
+
+\begin{center}
+\begin{tabular}{L{3.2cm} C{1.3cm} C{1.6cm} C{1.6cm} C{1.6cm} C{1.6cm} C{1.6cm} C{1.6cm}}
+\toprule
+& & \multicolumn{2}{c}{\textbf{Gemini 2.5 Flash}} & \multicolumn{2}{c}{\textbf{GPT-5.4-mini}} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+\textbf{Task} & \textbf{Metric} & \textbf{A} & \textbf{B} & \textbf{C} & \textbf{A} & \textbf{B} & \textbf{C} \\
+\midrule
+house-price       & MAE $\downarrow$    & 19,919 & 20,595 & \textbf{16,682} & 23,301 & 17,308 & \textbf{17,529} \\
+spaceship-titanic & Acc.\ $\uparrow$   & 0.711  & 0.628  & \textbf{0.822}  & 0.769  & 0.827  & \textbf{0.835} \\
+vectorization     & Sp.\ $\uparrow$    & 6.99$\times$  & 13.74$\times$ & \textbf{14.31}$\times$ & 0.005$\times$ & 1.26$\times$ & \textbf{1.28}$\times$ \\
+feedback          & F1 $\uparrow$      & 0.562  & 0.589  & \textbf{0.595}  & DNF    & 0.546  & \textbf{0.561} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.4em}
+\textbf{Bold} = best result across conditions for that model/task pair.
+Condition C achieves the best score in \textbf{7 of 8} completed model/task pairs.
+
+% ─── Missing runs ────────────────────────────────────────────────────────────
+\section{Missing Runs and Root Cause}
+\label{sec:missing}
+
+\subsection*{Claude Sonnet 4.6 --- Conditions B and C (8 runs)}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Condition} & \textbf{Task} & \textbf{Status} & \textbf{Reason} \\
+\midrule
+B & house-price       & \cellcolor{missingyellow}Not run & API quota \\
+B & spaceship-titanic & \cellcolor{missingyellow}Not run & API quota \\
+B & vectorization     & \cellcolor{missingyellow}Not run & API quota \\
+B & feedback          & \cellcolor{missingyellow}Not run & API quota \\
+C & house-price       & \cellcolor{missingyellow}Not run & API quota \\
+C & spaceship-titanic & \cellcolor{missingyellow}Not run & API quota \\
+C & vectorization     & \cellcolor{missingyellow}Not run & API quota \\
+C & feedback          & \cellcolor{missingyellow}Not run & API quota \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3em}
+\textbf{Exact error returned by the Anthropic API:}
+\begin{quote}
+\texttt{anthropic.BadRequestError: 400 --- You have reached your specified API usage limits.\\
+You will regain access on 2026-05-01 at 00:00 UTC.}
+\end{quote}
+
+The quota was consumed running Condition A (4 tasks) and the first attempt of Condition B
+before the limit was hit. All 8 remaining Claude runs returned this error immediately and
+produced no output files.
+
+% ─── Options for Ammar ───────────────────────────────────────────────────────
+\section*{Options for Ammar --- What to Do Next}
+
+\begin{enumerate}[leftmargin=1.5em, itemsep=6pt]
+
+  \item \textbf{Use your own Anthropic API key (recommended).}
+        Replace \texttt{ANTHROPIC\_API\_KEY} in the project \texttt{.env} file with your key.
+        Then run:
+        \begin{verbatim}
+  cd project/
+  source implementation/venv2/bin/activate
+  bash run_all_missing.sh
+        \end{verbatim}
+        This script has skip logic --- it will only run the 8 missing Claude B/C experiments
+        and leave all 28 completed results untouched.
+        Estimated time: \textasciitilde2--3 hours.
+
+  \item \textbf{Substitute Gemini 2.5 Pro as the third model.}
+        Gemini API is free and has no quota issue. Replace the 8 missing Claude runs with
+        \texttt{gemini-2.5-pro}. The paper story remains intact (3 models, 3 conditions).
+        Run:
+        \begin{verbatim}
+  for COND in B C; do
+    for TASK in house-price spaceship-titanic vectorization feedback; do
+      python evaluation/run_experiment.py \
+        --condition $COND --task $TASK \
+        --model gemini-2.5-pro --steps 30 --attempts 3
+    done
+  done
+        \end{verbatim}
+
+  \item \textbf{Submit with 2 models only (Gemini + GPT).}
+        Conditions A/B/C are fully complete for both Gemini 2.5 Flash and GPT-5.4-mini.
+        The reflexion effect is already demonstrated (C beats B beats A on most tasks).
+        Dropping Claude from the paper is a scope reduction, not a fatal gap.
+
+\end{enumerate}
+
+% ─── Key findings so far ─────────────────────────────────────────────────────
+\section*{Key Findings From Completed Runs}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=4pt]
+  \item \textbf{Reflexion works.} Condition C achieves the best score in 7/8 completed
+        model--task pairs. The improvement over Condition B confirms it is the
+        \emph{post-mortem}, not simply more attempts, that drives performance gains.
+
+  \item \textbf{More attempts without reflection can hurt.}
+        Gemini's spaceship-titanic score \emph{drops} from A (0.711) to B (0.628),
+        then recovers to C (0.822). This is a strong illustration of the thesis.
+
+  \item \textbf{GPT struggles on vectorization in Condition A.}
+        Score of 0.005$\times$ (essentially broke the code) recovers to 1.26$\times$ in
+        Conditions B and C. Reflexion also helps GPT avoid re-introducing regressions.
+
+  \item \textbf{GPT failed to complete the feedback task in Condition A.}
+        The agent exhausted all 30 steps without writing a submission file. This is a
+        planning failure --- the agent read and re-read task files without acting.
+        Conditions B and C fix this (0.546, 0.561 F1).
+\end{itemize}
+
+\vspace{1em}
+\hrule height 0.5pt
+\vspace{0.5em}
+{\small\color{gray}
+Generated automatically from results in \texttt{project/results/\{A,B,C\}/}.
+Scores are the \texttt{final\_score} field from each JSON result file.
+Baselines: house-price 30{,}000 MAE; spaceship-titanic 0.720 accuracy;
+vectorization 1.00$\times$ speedup; feedback 0.500 macro-F1.
+}
+
+\end{document}

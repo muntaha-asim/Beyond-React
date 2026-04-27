@@ -72,14 +72,38 @@ def complete(
                 else:
                     raise
     else:
-        response = _openai_client.chat.completions.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[{"role": "user", "content": prompt}],
-            stop=stop_sequences if stop_sequences else None,
-        )
-        completion = response.choices[0].message.content
+        for attempt in range(10):
+            try:
+                new_model = any(m in model for m in ["o1", "o3", "o4", "gpt-5"])
+                kwargs = dict(
+                    model=model,
+                    temperature=temperature,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                if not new_model:
+                    kwargs["stop"] = stop_sequences if stop_sequences else None
+                if new_model:
+                    kwargs["max_completion_tokens"] = max_tokens
+                else:
+                    kwargs["max_tokens"] = max_tokens
+                response = _openai_client.chat.completions.create(**kwargs)
+                completion = response.choices[0].message.content
+                break
+            except Exception as e:
+                if "max_tokens" in str(e) and "max_completion_tokens" in str(e):
+                    kwargs.pop("max_tokens", None)
+                    kwargs["max_completion_tokens"] = max_tokens
+                    response = _openai_client.chat.completions.create(**kwargs)
+                    completion = response.choices[0].message.content
+                    break
+                elif "429" in str(e) or "rate_limit" in str(e).lower():
+                    wait = min(300, 30 * (attempt + 1))
+                    print(f"[llm] OpenAI rate limit — retrying in {wait}s (attempt {attempt+1}/10)")
+                    time.sleep(wait)
+                    if attempt == 9:
+                        raise
+                else:
+                    raise
 
     # Manual stop-sequence trim (belt-and-suspenders for Claude)
     for seq in stop_sequences:
@@ -114,15 +138,19 @@ def _stub_missing_modules():
     crash. We replace complete_text immediately after, so these stubs are never
     actually invoked.
     """
-    # torch stub — needs a real 'no_grad' context manager
+    # torch stub — needs a real 'no_grad' context manager and a non-None __spec__
+    # so datasets/importlib checks don't treat the module as broken.
     if "torch" not in sys.modules:
         import contextlib
+        import importlib.util
         torch_stub = types.ModuleType("torch")
         torch_stub.Tensor = _StubClass
         torch_stub.tensor = lambda *a, **kw: None
         torch_stub.no_grad = contextlib.nullcontext
+        torch_stub.manual_seed = lambda *a, **kw: None
         torch_stub.cuda = types.ModuleType("torch.cuda")
         torch_stub.device = _StubClass
+        torch_stub.__spec__ = importlib.util.spec_from_loader("torch", loader=None)
         sys.modules["torch"] = torch_stub
 
     # transformers stub — StoppingCriteria must be a real base class

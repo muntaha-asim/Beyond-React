@@ -36,6 +36,10 @@ def _model_slug(model: str) -> str:
     return (model
             .replace("claude-3-5-sonnet-20241022", "sonnet35")
             .replace("claude-3-5-sonnet-", "sonnet35-")
+            .replace("gpt-5.4-mini", "gpt54mini")
+            .replace("gpt-5-mini", "gpt5mini")
+            .replace("gpt-4.1-mini", "gpt41mini")
+            .replace("gpt-4o-mini", "gpt4omini")
             .replace("gpt-4o", "gpt4o")
             .replace("gemini-2.5-flash-lite", "gemini25flashlite")
             .replace("gemini-2.5-flash", "gemini25flash")

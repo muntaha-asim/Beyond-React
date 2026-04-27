@@ -20,12 +20,9 @@ venv2/
 .venv/
 env/
 
-# Experiment outputs (large, reproducible)
+# Experiment outputs
 logs/
-results/A/
-results/B/
-results/C/
-results/summary.json
+# results are tracked so Ammar can see them
 
 # Jupyter
 .ipynb_checkpoints/

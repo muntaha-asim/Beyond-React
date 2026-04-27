@@ -1,0 +1,9 @@
+{
+  "condition": "A",
+  "task": "feedback",
+  "model": "claude-sonnet-4-6",
+  "attempts": [],
+  "final_score": 0.5799,
+  "attempts_to_success": null,
+  "note": "Run killed at step 22 (API hang); score from last saved submission"
+}
